@@ -1,0 +1,10 @@
+configs:
+  files:
+    config.yaml:
+      watch:
+        namespaces:
+          include:
+            - clickhouse
+metrics:
+  enabled: true
+

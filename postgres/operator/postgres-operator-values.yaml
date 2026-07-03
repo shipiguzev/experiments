@@ -1,0 +1,11 @@
+configGeneral:
+  docker_image: ghcr.io/zalando/spilo-18:4.1-p1
+
+configMajorVersionUpgrade:
+  major_version_upgrade_mode: "manual"
+  minimal_major_version: "14"
+  target_major_version: "18"
+
+configKubernetes:
+  pod_environment_configmap: "postgres-operator/postgres-pod-config"
+  pod_environment_secret: "walg-config"

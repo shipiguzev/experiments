@@ -1,0 +1,59 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: postgres-cluster
+  namespace: postgres
+spec:
+  teamId: "test"
+  volume:
+    size: 1Gi
+  numberOfInstances: 3
+  users:
+    monitoring: []
+  databases:
+    app: monitoring
+  postgresql:
+    version: "18"
+  sidecars:
+    - name: prometheus-postgres-exporter
+      image: prometheuscommunity/postgres-exporter:v0.12.1
+      ports:
+        - name: pg-exporter
+          containerPort: 9187
+          protocol: TCP
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 250m
+          memory: 512Mi
+      env:
+        - name: CLUSTER_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.labels['cluster-name']
+        - name: DATA_SOURCE_NAME
+          value: >-
+            host=/var/run/postgresql user=postgres
+            application_name=postgres_exporter
+        - name: PG_EXPORTER_CONSTANT_LABELS
+          value: "release=$(CLUSTER_NAME),namespace=$(POD_NAMESPACE)"
+        - name: PG_EXPORTER_EXTEND_QUERY_PATH
+          value: /etc/postgres-exporter/queries.yaml
+  additionalVolumes:
+    - name: socket-directory
+      mountPath: /var/run/postgresql
+      targetContainers:
+        - all
+      volumeSource:
+        emptyDir: {}
+    - name: postgres-exporter-custom-queries
+      mountPath: /etc/postgres-exporter
+      targetContainers:
+        - prometheus-postgres-exporter
+      volumeSource:
+        configMap:
+          name: postgresql-exporter-custom-queries
+          optional: true

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cluster-metrics
+  namespace: postgres
+  labels:
+    application: spilo
+    cluster-name: postgres-cluster
+spec:
+  selector:
+    application: spilo
+    cluster-name: postgres-cluster
+  clusterIP: None
+  ports:
+    - name: pg-exporter
+      port: 9187
+      targetPort: 9187
+    - name: patroni
+      port: 8008
+      targetPort: 8008

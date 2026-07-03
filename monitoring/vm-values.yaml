@@ -1,0 +1,9 @@
+grafana:
+  enabled: true
+  adminPassword: admin
+  image:
+    tag: "11.1.0"
+  plugins:
+    - vertamedia-clickhouse-datasource
+  env:
+    GF_INSTALL_PLUGINS: "vertamedia-clickhouse-datasource 3.4.11"

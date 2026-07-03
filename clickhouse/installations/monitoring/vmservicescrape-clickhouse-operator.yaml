@@ -1,0 +1,17 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: clickhouse-operator
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - clickhouse-operator
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: altinity-clickhouse-operator
+      app.kubernetes.io/instance: clickhouse-operator
+  endpoints:
+    - port: ch-metrics
+    - port: op-metrics
+
