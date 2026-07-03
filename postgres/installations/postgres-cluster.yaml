@@ -12,6 +12,15 @@ spec:
     monitoring: []
   databases:
     app: monitoring
+  preparedDatabases:
+    app:
+      defaultUsers: false
+      schemas:
+        public:
+          defaultRoles: false
+          defaultUsers: false
+      extensions:
+        pg_partman: partman
   postgresql:
     version: "18"
   sidecars:
