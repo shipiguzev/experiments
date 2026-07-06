@@ -11,7 +11,7 @@ spec:
   users:
     monitoring: []
   databases:
-    app: monitoring
+    app: app_owner
   preparedDatabases:
     app:
       defaultUsers: false

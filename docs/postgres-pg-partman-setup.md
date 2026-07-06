@@ -8,7 +8,7 @@
 
 - `postgres-operator` (helm-релиз `postgres-operator` в namespace `postgres-operator`);
 - целевой Postgres-кластер (CR `postgresql.acid.zalan.do`) `postgres-cluster` в namespace `postgres`, версия 18;
-- база `app` (создана через `spec.databases: {app: monitoring}`, владелец — пользователь `monitoring`).
+- база `app` (создана через `spec.databases: {app: app_owner}`, владелец — роль `app_owner`, совпадающая по имени с той, что создаёт `preparedDatabases`).
 
 `pg_partman` уже входит в образ Spilo — устанавливать бинарники отдельно не нужно, только включить расширение в конкретной базе.
 
@@ -29,7 +29,7 @@ experiments/
 # postgres/installations/postgres-cluster.yaml
 spec:
   databases:
-    app: monitoring
+    app: app_owner
   preparedDatabases:
     app:
       defaultUsers: false
@@ -73,19 +73,19 @@ spec:
 >
 > Лечится добавлением `partman` в `schemas` рядом с `public` (как в примере выше), с тем же `defaultRoles: false, defaultUsers: false` — иначе схему создаст роль вида `app_partman_owner`, которая упирается в следующую грабли.
 
-> **Важно (грабли):** даже с объявленной схемой `partman` создание может упасть с тем же текстом `permission denied for database app`, но по другой причине — у роли-владельца схемы (`app_owner` при `defaultRoles: false`, либо `app_partman_owner` при `defaultRoles: true`) нет привилегии `CREATE` на самой базе `app`. Она отсутствует, потому что `app` создана через обычное поле `databases: {app: monitoring}` с владельцем `monitoring`, а не через `preparedDatabases` с нуля — во втором случае оператор сам выдал бы `CREATE` новой db-owner роли при создании базы. Лечится одноразовым grant'ом (выполнять на **primary**, реплики в read-only и просто откажут с `cannot execute ... in a read-only transaction`):
+> **Важно (грабли):** даже с объявленной схемой `partman` создание может упасть с тем же текстом `permission denied for database app`, но по другой причине — у роли-владельца схемы (`app_owner` при `defaultRoles: false`, либо `app_partman_owner` при `defaultRoles: true`) нет привилегии `CREATE` на самой базе `app`. Причина — рассинхронизация владельцев: `databases: {app: monitoring}` создаёт/держит базу `app` с владельцем `monitoring`, а `preparedDatabases` заводит для схем отдельную новую роль `app_owner`, которая владеет только схемой, но не самой базой (`CREATE` на базу неявно получает только её реальный владелец).
 >
-> ```bash
-> kubectl exec -n postgres postgres-cluster-1 -c postgres -- psql -U postgres -d app -c \
->   "GRANT CREATE ON DATABASE app TO app_owner;"
+> Официальный путь миграции с `databases` на `preparedDatabases` ([docs/user.md](https://github.com/zalando/postgres-operator/blob/master/docs/user.md), раздел "From `databases` to `preparedDatabases`") — сделать так, чтобы имя владельца в `databases` совпадало с конвенцией `<dbname>_owner` из `preparedDatabases`, тогда это буквально одна и та же роль:
+>
+> ```yaml
+> spec:
+>   databases:
+>     app: app_owner   # было: app: monitoring
 > ```
 >
-> После grant'а оператор сам не переретраит синхронизацию — нужно вызвать новый reconcile, например полным ресинком оператора:
+> Роли синхронизируются раньше баз, поэтому при таком изменении оператор сам выполняет `ALTER DATABASE app OWNER TO app_owner;` (см. `executeAlterDatabaseOwner` в `pkg/cluster/database.go`) — `app_owner` становится настоящим владельцем базы и получает `CREATE` неявно, без ручного `GRANT`. Старая роль (`monitoring`), если она больше нигде не используется, может остаться в `users:` как есть — оператор не отбирает у неё существующие привилегии, она просто перестаёт быть владельцем `app`.
 >
-> ```bash
-> kubectl rollout restart deployment postgres-operator -n postgres-operator
-> kubectl rollout status deployment postgres-operator -n postgres-operator --timeout=60s
-> ```
+> Ручной `GRANT CREATE ON DATABASE app TO app_owner;` работает как временный обход, но это фактическая правка состояния БД в обход манифеста — при пересоздании кластера (новый `preparedDatabases`-овнер, новая база) грабли вернутся. Правка имени владельца в `databases:` устраняет проблему декларативно и навсегда.
 
 Примените манифест:
 
@@ -140,7 +140,43 @@ SELECT partman.create_parent(
 >
 > Использовать нужно валидный `interval` из самого Postgres — `'1 day'`, `'1 week'`, `'1 month'` и т.д., а не текстовые алиасы вроде `daily`/`weekly`/`monthly`.
 
-Аналогично создаются остальные таблицы — в этом стенде это `public.metrics_daily` (колонка `ts`, метрика/значение) и `public.request_logs_daily` (колонка `ts`, лог HTTP-запросов).
+Аналогично создаются остальные таблицы — в этом стенде это `public.metrics_daily` (колонка `ts`, метрика/значение) и `public.request_logs_daily` (колонка `ts`, лог HTTP-запросов):
+
+```sql
+CREATE TABLE public.metrics_daily (
+    id          bigserial,
+    ts          timestamptz NOT NULL DEFAULT now(),
+    metric_name text NOT NULL,
+    value       double precision NOT NULL,
+    PRIMARY KEY (id, ts)
+) PARTITION BY RANGE (ts);
+
+SELECT partman.create_parent(
+    p_parent_table     => 'public.metrics_daily',
+    p_control          => 'ts',
+    p_interval         => '1 day',
+    p_premake          => 7,
+    p_start_partition  => (current_date - 6)::text
+);
+
+CREATE TABLE public.request_logs_daily (
+    id          bigserial,
+    ts          timestamptz NOT NULL DEFAULT now(),
+    method      text NOT NULL,
+    path        text NOT NULL,
+    status_code integer NOT NULL,
+    duration_ms integer NOT NULL,
+    PRIMARY KEY (id, ts)
+) PARTITION BY RANGE (ts);
+
+SELECT partman.create_parent(
+    p_parent_table     => 'public.request_logs_daily',
+    p_control          => 'ts',
+    p_interval         => '1 day',
+    p_premake          => 7,
+    p_start_partition  => (current_date - 6)::text
+);
+```
 
 После создания всех parent-таблиц досоздайте партиции на нужный диапазон явным вызовом обслуживания:
 
@@ -181,7 +217,27 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 
 `generate_series(current_date - 6, current_date, interval '1 day')` даёт 7 дней (неделя, включая сегодня), `generate_series(1, 2000)` — по 2000 строк на день. PostgreSQL сам направит каждую строку в нужную партицию по значению `event_time` — партиции для этого диапазона уже должны существовать (см. Шаг 2).
 
-Аналогичные `INSERT` выполняются для `metrics_daily` и `request_logs_daily`.
+Аналогичные `INSERT` выполняются для `metrics_daily` и `request_logs_daily`:
+
+```sql
+INSERT INTO public.metrics_daily (ts, metric_name, value)
+SELECT
+    d::date + (random() * interval '1 day'),
+    (ARRAY['cpu_usage','memory_usage','disk_io','network_in','network_out'])[floor(random()*5+1)],
+    round((random()*100)::numeric, 2)
+FROM generate_series(current_date - 6, current_date, interval '1 day') d,
+     generate_series(1, 2000) g;
+
+INSERT INTO public.request_logs_daily (ts, method, path, status_code, duration_ms)
+SELECT
+    d::date + (random() * interval '1 day'),
+    (ARRAY['GET','POST','PUT','DELETE'])[floor(random()*4+1)],
+    (ARRAY['/api/users','/api/orders','/api/products','/health','/api/login'])[floor(random()*5+1)],
+    (ARRAY[200,201,400,404,500])[floor(random()*5+1)],
+    floor(random()*500+5)::int
+FROM generate_series(current_date - 6, current_date, interval '1 day') d,
+     generate_series(1, 2000) g;
+```
 
 ## Проверка
 
@@ -200,7 +256,7 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 | `preparedDatabases` без явного `schemas` создаёт схему `data` с новой ролью-овнером без `CONNECT` на существующую базу → `STATUS: UpdateFailed` | Явно указать существующую схему (`schemas: {public: {defaultRoles: false, defaultUsers: false}}`), не давать оператору создавать схему/роли с нуля для уже существующей базы |
 | После неудачной синхронизации остаются лишние роли (`<db>_data_owner`, `_reader`, `_writer`) | Удалить вручную (`DROP ROLE IF EXISTS ...`) перед повторным `kubectl apply` |
 | `extensions: {pg_partman: partman}` без схемы `partman` в `schemas` — `create extension: pq: schema "partman" does not exist` | Оператор не создаёт схему для `extensions` сам — добавить `partman` в `schemas` (с `defaultRoles: false, defaultUsers: false`) рядом с `public` |
-| Даже с объявленной схемой `partman` — `create database schema: pq: permission denied for database app` | У db-owner роли (`app_owner`/`app_partman_owner`) нет `CREATE` на базе `app`, т.к. база создана через `databases:`, а не `preparedDatabases` с нуля — выдать вручную `GRANT CREATE ON DATABASE app TO app_owner;` на **primary**, затем форсировать ресинк (`kubectl rollout restart deployment postgres-operator -n postgres-operator`) |
+| Даже с объявленной схемой `partman` — `create database schema: pq: permission denied for database app` | Владелец в `databases:` не совпадает с ролью `<dbname>_owner`, которую использует `preparedDatabases` — привести к одному имени (`databases: {app: app_owner}`), оператор сам выполнит `ALTER DATABASE ... OWNER TO` при следующей синхронизации |
 | `p_interval => 'daily'` — `Special partition interval values from old pg_partman versions ... no longer supported` | В pg_partman 5.x использовать нативные интервалы Postgres: `'1 day'`, `'1 week'`, `'1 month'` |
 | `SELECT partman.run_maintenance_proc();` — `partman.run_maintenance_proc() is a procedure` | Вызывать через `CALL partman.run_maintenance_proc();` |
 | Партиционируемая колонка не входит в PK/уникальный констрейнт | Для нативного партиционирования PK обязан включать колонку партиционирования: `PRIMARY KEY (id, event_time)`, а не `PRIMARY KEY (id)` |
