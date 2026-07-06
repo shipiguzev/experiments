@@ -1562,6 +1562,135 @@
         }
       ],
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
+      "id": 16,
+      "panels": [],
+      "title": "Extensions",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "id": 17,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "datname",
+            "desc": false
+          },
+          {
+            "displayName": "schemaname",
+            "desc": false
+          },
+          {
+            "displayName": "extname",
+            "desc": false
+          }
+        ]
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": ""
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "group by (datname, extname, extversion, schemaname) (pg_extension_installed{namespace=\"$namespace\"})",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Installed Extensions",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "container": true,
+              "endpoint": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "prometheus": true,
+              "service": true,
+              "release": true,
+              "server": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "datname": 0,
+              "schemaname": 1,
+              "extname": 2,
+              "extversion": 3
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "schemaVersion": 39,

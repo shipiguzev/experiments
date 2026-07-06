@@ -256,6 +256,82 @@ kubectl apply -f -
 
 Дашборд появится в Grafana через 15-20 секунд.
 
+## Шаг 6. Мониторинг установленных extensions
+
+Список расширений, реально установленных в каждой базе, — не то, что видно из манифеста кластера (`preparedDatabases.extensions` описывает только то, что поставил оператор при бутстрапе; расширения, добавленные вручную или другим способом, туда не попадают). Чтобы видеть актуальную картину в Grafana, используем уже подключённый, но неиспользуемый механизм `postgres-exporter-custom-queries` (см. Шаг 3) — добавляем туда SQL-запрос к `pg_extension`.
+
+```yaml
+# postgres/installations/monitoring/postgres-exporter-queries-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-exporter-custom-queries
+  namespace: postgres
+data:
+  queries.yaml: |
+    pg_extension:
+      query: |
+        SELECT current_database()                    AS datname,
+               extname,
+               extversion,
+               extnamespace::regnamespace::text       AS schemaname,
+               1                                       AS installed
+        FROM pg_extension;
+      metrics:
+        - datname:
+            usage: "LABEL"
+            description: "Database the extension is installed in"
+        - extname:
+            usage: "LABEL"
+            description: "Extension name"
+        - extversion:
+            usage: "LABEL"
+            description: "Installed extension version"
+        - schemaname:
+            usage: "LABEL"
+            description: "Schema the extension is installed in"
+        - installed:
+            usage: "GAUGE"
+            description: "Extension is installed (always 1)"
+```
+
+Метрика получает имя `pg_extension_installed` — `<ключ верхнего уровня>_<имя колонки>` — это соглашение имён у `postgres_exporter`, а не что-то заданное явно.
+
+По умолчанию `DATA_SOURCE_NAME` экспортера (Шаг 3) не указывает `dbname` и коннектится только к одной базе (фактически `postgres`) — расширения из `app` (в т.ч. `pg_partman`) в метрики бы не попали. Включаем обход всех баз кластера:
+
+```yaml
+# postgres/installations/postgres-cluster.yaml, sidecars[0].env
+- name: PG_EXPORTER_AUTO_DISCOVER_DATABASES
+  value: "true"
+```
+
+> **Важно (компромисс):** `auto_discover_databases` заставляет экспортёр опрашивать *все* базы кластера этим же набором запросов, включая уже встроенные коллекторы (`pg_stat_statements`, `pg_locks` и т.д.) — не только наш кастомный запрос по extensions. Это увеличивает кардинальность вообще всех метрик экспортёра (каждая теперь размножается по числу баз), а не только целевой. Альтернатива — зафиксировать `dbname=app` в `DATA_SOURCE_NAME` без auto-discover: проще и без роста кардинальности, но тогда не видно расширений, установленных в системных базах (`postgres`, `template1`).
+
+Примените ConfigMap (до пересоздания пода — он смонтирован как volume) и манифест кластера:
+
+```bash
+kubectl apply -f postgres/installations/monitoring/postgres-exporter-queries-cm.yaml
+kubectl apply -f postgres/installations/postgres-cluster.yaml
+kubectl get postgresql -n postgres -w
+# STATUS: Updating -> Running (rolling restart всех подов из-за смены sidecar env)
+```
+
+Проверьте метрику:
+
+```bash
+kubectl exec -n postgres postgres-cluster-0 -c postgres -- curl -s http://localhost:9187/metrics | grep pg_extension_installed
+```
+
+В дашборд `monitoring/dashboards/postgresql-cluster-overview.json` добавлена таблица «Installed Extensions» (панель `Extensions`) с запросом:
+
+```promql
+group by (datname, schemaname, extname, extversion) (pg_extension_installed{namespace="$namespace"})
+```
+
+> **Важно (грабли):** кластер состоит из 3 реплик, и каждая репортит свои метрики независимо — если группировать `group by` с `instance` в списке (естественный первый вариант, раз кластер, а не одна база), таблица покажет один и тот же набор расширений трижды, по разу на под. Поле `instance` нужно убрать из `group by` — тогда VictoriaMetrics схлопнет одинаковые ряды с разных подов в один, что и требуется: расширения — свойство базы данных, а не конкретной реплики.
+
+Порядок колонок в таблице задаётся через `transformations[].options.indexByName` в JSON дашборда (`datname: 0, schemaname: 1, extname: 2, extversion: 3`), сортировка — через `options.sortBy` панели (по тем же трём полям, в том же порядке).
+
 ## Проверка
 
 | Компонент | Команда |
@@ -267,6 +343,7 @@ kubectl apply -f -
 | VMServiceScrape | `kubectl get vmservicescrape -n monitoring postgres-cluster` |
 | Таргеты VMAgent | `kubectl port-forward -n monitoring svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429` → http://localhost:8429/targets |
 | Подключение к PostgreSQL | `kubectl exec -it postgres-cluster-0 -n postgres -- psql -U postgres -c "SELECT version();"` |
+| Метрика установленных extensions | `kubectl exec -n postgres postgres-cluster-0 -c postgres -- curl -s http://localhost:9187/metrics \| grep pg_extension_installed` |
 
 ## Известные особенности
 
