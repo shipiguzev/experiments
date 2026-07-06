@@ -239,6 +239,86 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
      generate_series(1, 2000) g;
 ```
 
+## Шаг 4. Включить автообслуживание через pg_partman_bgw
+
+Партиции из Шага 2 создаются заранее (`p_premake => 7`), но дальше их никто не продлевает и не подчищает — `partman.run_maintenance_proc()` вызывается только руками. Без периодического вызова партиции перестанут появляться за пределами исходного окна `premake`, а старые (`retention` не задан, `retention_keep_table = true`) будут копиться бесконечно.
+
+`pg_partman` поставляется с собственным background worker'ом (`pg_partman_bgw`), который сам дёргает `run_maintenance_proc()` по расписанию — не нужно городить отдельный `pg_cron`/k8s CronJob.
+
+> **Важно (грабли):** `pg_partman_bgw` и `pg_partman` — не одно и то же для `shared_preload_libraries`. `pg_partman` — чистое SQL/PLpgSQL-расширение, у него нет `.so`-файла (проверяется через `pg_config --pkglibdir` внутри пода Spilo — там лежит только `pg_partman_bgw.so`). Если вписать в `shared_preload_libraries` `pg_partman` вместо `pg_partman_bgw`, постмастер не найдёт файл библиотеки и не поднимется **ни на одном из подов кластера** после рестарта — это полный outage, а не safe rolling restart. В список нужно добавлять только `pg_partman_bgw`.
+
+Включается через `spec.postgresql.parameters` в манифесте кластера:
+
+```yaml
+# postgres/installations/postgres-cluster.yaml
+spec:
+  postgresql:
+    version: "18"
+    parameters:
+      shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_partman_bgw"
+      pg_partman_bgw.interval: "3600"
+      pg_partman_bgw.role: "app_owner"
+      pg_partman_bgw.dbname: "app"
+```
+
+- `pg_partman_bgw.interval` — как часто (в секундах) воркер вызывает `run_maintenance_proc()`; `3600` — раз в час.
+- `pg_partman_bgw.role` / `pg_partman_bgw.dbname` — от чьего имени и в какой базе выполнять обслуживание. Без них воркер стартует, но не знает, что обслуживать.
+
+> **Важно (грабли):** `shared_preload_libraries` в Patroni — это непрозрачная строка, а не список, который патчится по элементам. Когда оператор шлёт `PATCH /config` в Patroni API с новым значением этого параметра, он **целиком заменяет** предыдущую строку, а не добавляет к ней один элемент. На живом кластере это значение обычно уже непустое — было выставлено один раз при первичном бутстрапе Spilo (`configure_spilo.py`) и с тех пор хранится как persisted-конфиг в DCS, в манифесте CR может вообще не упоминаться. Поэтому нельзя просто прописать `shared_preload_libraries: "pg_partman_bgw"` — это молча удалит из preload все остальные библиотеки, которые реально используются (мониторинг, статистика запросов и т.д.), без явной ошибки при рестарте. Перед изменением нужно сначала посмотреть текущее значение:
+>
+> ```bash
+> kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "SHOW shared_preload_libraries;"
+> ```
+>
+> и переносить в манифест полный список + добавляемый элемент, а не только его.
+
+Примените манифест — параметр требует рестарта Postgres, оператор сам выполнит rolling restart (сначала реплики, затем лидер):
+
+```bash
+kubectl apply -f postgres/installations/postgres-cluster.yaml
+kubectl get postgresql -n postgres postgres-cluster -w
+# STATUS: Updating -> Running
+```
+
+Проверьте, что воркер поднялся:
+
+```bash
+kubectl exec -n postgres postgres-cluster-0 -c postgres -- bash -c "ps aux | grep 'pg_partman master'"
+# postgres: postgres-cluster: pg_partman master background worker
+kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "SELECT name, setting FROM pg_settings WHERE name LIKE 'pg_partman_bgw%';"
+```
+
+### Оставляйте в shared_preload_libraries только то, что реально используется
+
+Раз уж приходится трогать `shared_preload_libraries` целиком, стоит сразу убрать оттуда всё лишнее, а не просто дописать новый элемент к тому, что было. Наличие библиотеки в списке ещё не значит, что она используется — проверяется через `CREATE EXTENSION`/`\dx` по всем базам, а не по факту присутствия в строке:
+
+```bash
+kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "SELECT datname FROM pg_database WHERE datistemplate = false;"
+# для каждой базы:
+kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -d <db> -c "\dx"
+```
+
+На этом стенде так нашлись два лишних пункта:
+
+- `timescaledb` — был в `shared_preload_libraries`, но `CREATE EXTENSION timescaledb` не выполнялся ни в одной базе (`app`, `postgres`, `template1`). Просто убран из списка.
+- `pg_cron` — расширение было создано в базе `postgres` (`cron.database_name` по умолчанию), но `cron.job` пуст (0 джобов) — не использовалось. Убран из `shared_preload_libraries`, а сам объект расширения удалён отдельно:
+
+  ```bash
+  kubectl exec -n postgres postgres-cluster-1 -c postgres -- psql -U postgres -d postgres -c "DROP EXTENSION pg_cron CASCADE;"
+  ```
+
+  > **Важно (грабли):** `DROP EXTENSION pg_cron;` без `CASCADE` падает с `cannot drop extension pg_cron because other objects depend on it (function cron.schedule_in_database(text,text,text) depends on schema cron)` — это внутренняя особенность упаковки pg_cron (перегруженная сигнатура функции), а не признак реального использования извне. Перед `CASCADE` стоит убедиться через `pg_depend`, что зависимость действительно принадлежит только самому расширению и ничего постороннего не зацепит:
+  >
+  > ```sql
+  > SELECT pg_describe_object(classid, objid, 0)
+  > FROM pg_depend d
+  > JOIN pg_extension e ON e.extname = 'pg_cron'
+  > WHERE d.refobjid = e.oid AND d.deptype != 'e';
+  > -- пусто = зависимостей снаружи расширения нет, CASCADE безопасен
+  > ```
+
+Итоговый список на этом стенде: `bg_mon, pg_stat_statements, pgextwlist, pg_auth_mon, set_user, pg_stat_kcache, pg_partman_bgw` — библиотеки, для которых либо есть реально созданное расширение с данными (`pg_stat_statements`, `pg_stat_kcache`, `set_user`, `pg_auth_mon`), либо активная конфигурация без отдельного extension-объекта (`bg_mon` — HTTP-статус на 8080, используется встроенным `/scripts/renice.sh`; `pgextwlist` — реально настроенный `extwlist.extensions`), плюс новый `pg_partman_bgw`.
+
 ## Проверка
 
 | Проверка | Команда |
@@ -248,6 +328,8 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 | Строки по партициям | `kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -d app -c "SELECT tableoid::regclass, count(*) FROM public.events_daily GROUP BY 1 ORDER BY 1;"` |
 | В `_default`-партиции пусто (данные не "провалились" мимо диапазона) | добавить в предыдущий запрос `WHERE tableoid::regclass::text = 'public.events_daily_default'` |
 | Итоговые счётчики по всем таблицам | `SELECT 'events_daily', count(*) FROM public.events_daily UNION ALL SELECT 'metrics_daily', count(*) FROM public.metrics_daily UNION ALL SELECT 'request_logs_daily', count(*) FROM public.request_logs_daily;` |
+| Воркер `pg_partman_bgw` запущен | `kubectl exec -n postgres postgres-cluster-0 -c postgres -- bash -c "ps aux \| grep 'pg_partman master'"` |
+| GUC `pg_partman_bgw.*` применились | `kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "SELECT name, setting FROM pg_settings WHERE name LIKE 'pg_partman_bgw%';"` |
 
 ## Известные особенности
 
@@ -260,3 +342,6 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 | `p_interval => 'daily'` — `Special partition interval values from old pg_partman versions ... no longer supported` | В pg_partman 5.x использовать нативные интервалы Postgres: `'1 day'`, `'1 week'`, `'1 month'` |
 | `SELECT partman.run_maintenance_proc();` — `partman.run_maintenance_proc() is a procedure` | Вызывать через `CALL partman.run_maintenance_proc();` |
 | Партиционируемая колонка не входит в PK/уникальный констрейнт | Для нативного партиционирования PK обязан включать колонку партиционирования: `PRIMARY KEY (id, event_time)`, а не `PRIMARY KEY (id)` |
+| `shared_preload_libraries: "pg_partman"` вместо `pg_partman_bgw` — постмастер не стартует ни на одном поде | У `pg_partman` нет `.so`-файла (чистое SQL-расширение), в preload нужен только `pg_partman_bgw` |
+| Изменение `shared_preload_libraries` через манифест тихо роняет остальные библиотеки | Это опаяемая строка, Patroni её не мёржит, а заменяет целиком — перед правкой смотреть текущее значение (`SHOW shared_preload_libraries;`) и переносить полный список + новый элемент |
+| `DROP EXTENSION pg_cron;` — `cannot drop extension pg_cron because other objects depend on it` | Внутренняя особенность упаковки (перегруженная `cron.schedule_in_database`), не внешняя зависимость — проверить `pg_depend` и дропать через `CASCADE` |
