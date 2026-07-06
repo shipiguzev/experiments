@@ -19,6 +19,9 @@ spec:
         public:
           defaultRoles: false
           defaultUsers: false
+        partman:
+          defaultRoles: false
+          defaultUsers: false
       extensions:
         pg_partman: partman
   postgresql:

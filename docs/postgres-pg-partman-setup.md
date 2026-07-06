@@ -23,7 +23,7 @@ experiments/
 
 ## Шаг 1. Задать расширение декларативно в манифесте кластера
 
-У оператора есть отдельное поле `spec.preparedDatabases.<db>.extensions` — оператор сам выполняет `CREATE EXTENSION ... SCHEMA ...` при синхронизации, вручную заходить в базу не нужно.
+У оператора есть отдельное поле `spec.preparedDatabases.<db>.extensions` — оператор сам выполняет `CREATE EXTENSION ... SCHEMA ...` при синхронизации, вручную заходить в базу не нужно. **Но** целевая схема расширения (`partman`) должна быть уже объявлена в `schemas` — сам оператор её для `extensions` не создаёт (см. грабли ниже).
 
 ```yaml
 # postgres/installations/postgres-cluster.yaml
@@ -35,6 +35,9 @@ spec:
       defaultUsers: false
       schemas:
         public:
+          defaultRoles: false
+          defaultUsers: false
+        partman:
           defaultRoles: false
           defaultUsers: false
       extensions:
@@ -59,6 +62,29 @@ spec:
 > DROP ROLE IF EXISTS app_data_reader;
 > DROP ROLE IF EXISTS app_data_writer;
 > "
+> ```
+
+> **Важно (грабли):** одного `extensions: {pg_partman: partman}` без соответствующей записи в `schemas` недостаточно — Postgres требует, чтобы схема, указанная в `CREATE EXTENSION ... SCHEMA ...`, уже существовала, а оператор для секции `extensions` схему сам не создаёт (в отличие от грабли с `data` выше, которая касается только дефолтной схемы всей `preparedDatabases`, а не схемы конкретного расширения). Без явного `schemas.partman` синхронизация падает:
+>
+> ```
+> level=info msg="creating extension \"pg_partman\" schema \"partman\""
+> level=error msg="could not sync prepared database: ... could not execute create extension: pq: schema \"partman\" does not exist"
+> ```
+>
+> Лечится добавлением `partman` в `schemas` рядом с `public` (как в примере выше), с тем же `defaultRoles: false, defaultUsers: false` — иначе схему создаст роль вида `app_partman_owner`, которая упирается в следующую грабли.
+
+> **Важно (грабли):** даже с объявленной схемой `partman` создание может упасть с тем же текстом `permission denied for database app`, но по другой причине — у роли-владельца схемы (`app_owner` при `defaultRoles: false`, либо `app_partman_owner` при `defaultRoles: true`) нет привилегии `CREATE` на самой базе `app`. Она отсутствует, потому что `app` создана через обычное поле `databases: {app: monitoring}` с владельцем `monitoring`, а не через `preparedDatabases` с нуля — во втором случае оператор сам выдал бы `CREATE` новой db-owner роли при создании базы. Лечится одноразовым grant'ом (выполнять на **primary**, реплики в read-only и просто откажут с `cannot execute ... in a read-only transaction`):
+>
+> ```bash
+> kubectl exec -n postgres postgres-cluster-1 -c postgres -- psql -U postgres -d app -c \
+>   "GRANT CREATE ON DATABASE app TO app_owner;"
+> ```
+>
+> После grant'а оператор сам не переретраит синхронизацию — нужно вызвать новый reconcile, например полным ресинком оператора:
+>
+> ```bash
+> kubectl rollout restart deployment postgres-operator -n postgres-operator
+> kubectl rollout status deployment postgres-operator -n postgres-operator --timeout=60s
 > ```
 
 Примените манифест:
@@ -173,6 +199,8 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 |---|---|
 | `preparedDatabases` без явного `schemas` создаёт схему `data` с новой ролью-овнером без `CONNECT` на существующую базу → `STATUS: UpdateFailed` | Явно указать существующую схему (`schemas: {public: {defaultRoles: false, defaultUsers: false}}`), не давать оператору создавать схему/роли с нуля для уже существующей базы |
 | После неудачной синхронизации остаются лишние роли (`<db>_data_owner`, `_reader`, `_writer`) | Удалить вручную (`DROP ROLE IF EXISTS ...`) перед повторным `kubectl apply` |
+| `extensions: {pg_partman: partman}` без схемы `partman` в `schemas` — `create extension: pq: schema "partman" does not exist` | Оператор не создаёт схему для `extensions` сам — добавить `partman` в `schemas` (с `defaultRoles: false, defaultUsers: false`) рядом с `public` |
+| Даже с объявленной схемой `partman` — `create database schema: pq: permission denied for database app` | У db-owner роли (`app_owner`/`app_partman_owner`) нет `CREATE` на базе `app`, т.к. база создана через `databases:`, а не `preparedDatabases` с нуля — выдать вручную `GRANT CREATE ON DATABASE app TO app_owner;` на **primary**, затем форсировать ресинк (`kubectl rollout restart deployment postgres-operator -n postgres-operator`) |
 | `p_interval => 'daily'` — `Special partition interval values from old pg_partman versions ... no longer supported` | В pg_partman 5.x использовать нативные интервалы Postgres: `'1 day'`, `'1 week'`, `'1 month'` |
 | `SELECT partman.run_maintenance_proc();` — `partman.run_maintenance_proc() is a procedure` | Вызывать через `CALL partman.run_maintenance_proc();` |
 | Партиционируемая колонка не входит в PK/уникальный констрейнт | Для нативного партиционирования PK обязан включать колонку партиционирования: `PRIMARY KEY (id, event_time)`, а не `PRIMARY KEY (id)` |
