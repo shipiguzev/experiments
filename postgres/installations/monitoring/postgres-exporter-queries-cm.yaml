@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-exporter-custom-queries
+  namespace: postgres
+data:
+  queries.yaml: |
+    pg_extension:
+      query: |
+        SELECT current_database()                    AS datname,
+               extname,
+               extversion,
+               extnamespace::regnamespace::text       AS schemaname,
+               1                                       AS installed
+        FROM pg_extension;
+      metrics:
+        - datname:
+            usage: "LABEL"
+            description: "Database the extension is installed in"
+        - extname:
+            usage: "LABEL"
+            description: "Extension name"
+        - extversion:
+            usage: "LABEL"
+            description: "Installed extension version"
+        - schemaname:
+            usage: "LABEL"
+            description: "Schema the extension is installed in"
+        - installed:
+            usage: "GAUGE"
+            description: "Extension is installed (always 1)"
