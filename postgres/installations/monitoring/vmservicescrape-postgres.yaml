@@ -17,3 +17,5 @@ spec:
     - port: patroni
       interval: 30s
       path: /metrics
+    - port: walg-exporter
+      interval: 30s
