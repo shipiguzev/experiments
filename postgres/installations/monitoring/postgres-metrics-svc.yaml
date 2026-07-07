@@ -18,3 +18,6 @@ spec:
     - name: patroni
       port: 8008
       targetPort: 8008
+    - name: walg-exporter
+      port: 9351
+      targetPort: 9351
