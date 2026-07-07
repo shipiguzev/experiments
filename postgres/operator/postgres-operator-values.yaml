@@ -6,6 +6,6 @@ configMajorVersionUpgrade:
   minimal_major_version: "14"
   target_major_version: "18"
 
-#configKubernetes:
-#  pod_environment_configmap: "postgres-operator/postgres-pod-config"
-#  pod_environment_secret: "walg-config"
+configKubernetes:
+  pod_environment_configmap: "postgres-operator/postgres-pod-config"
+  pod_environment_secret: "walg-config"
