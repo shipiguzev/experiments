@@ -19,7 +19,20 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 118,
-  "links": [],
+  "links": [
+    {
+      "asDashboard": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "WAL-G Backup",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/0ML78jy4z/postgresql-wal-g-backup?var-namespace=$namespace"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -1691,6 +1704,81 @@
         }
       ],
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "id": 20,
+      "panels": [],
+      "title": "WAL-G",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "dateTimeAsIso"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 58
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": ""
+          },
+          "editorMode": "code",
+          "expr": "walg_newest_basebackup{namespace=~\"$namespace\"} * 1000",
+          "legendFormat": "{{ pod }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last basebackup date",
+      "type": "stat"
     }
   ],
   "schemaVersion": 39,
