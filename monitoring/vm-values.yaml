@@ -7,3 +7,8 @@ grafana:
     - vertamedia-clickhouse-datasource
   env:
     GF_INSTALL_PLUGINS: "vertamedia-clickhouse-datasource 3.4.11"
+  sidecar:
+    dashboards:
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true

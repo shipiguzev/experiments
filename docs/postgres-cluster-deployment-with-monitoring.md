@@ -243,7 +243,7 @@ kubectl get vmservicescrape -n monitoring postgres-cluster
 
 ## Шаг 5. Деплой дашборда
 
-Дашборд деплоится через ConfigMap с лейблом `grafana_dashboard=1` — Grafana sidecar подхватывает его автоматически.
+Дашборд деплоится через ConfigMap с лейблом `grafana_dashboard=1` — Grafana sidecar подхватывает его автоматически. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`).
 
 ```bash
 kubectl create configmap postgresql-cluster-overview-dashboard \
@@ -251,6 +251,7 @@ kubectl create configmap postgresql-cluster-overview-dashboard \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
 kubectl apply -f -
 ```
 
