@@ -27,7 +27,7 @@ spec:
   postgresql:
     version: "18"
     parameters:
-      shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_partman_bgw"
+      shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_cron,pg_partman_bgw"
       pg_partman_bgw.interval: "3600"
       pg_partman_bgw.role: "app_owner"
       pg_partman_bgw.dbname: "app"

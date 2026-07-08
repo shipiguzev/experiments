@@ -35,9 +35,13 @@ experiments/
 └── docs/                                      # пошаговые инструкции (см. ниже)
 ```
 
+## Быстрый старт
+
+Нужно развернуть PostgreSQL + MinIO + мониторинг + pg_partman одним проходом, сразу на v18, без исторического пути через апгрейд — см. **[Полное развёртывание с нуля: PostgreSQL 18 + MinIO + мониторинг](docs/postgres-full-stack-from-scratch.md)**. Это единая инструкция, собранная из доков 2, 3, 6 и 7 ниже, с пояснениями «что и зачем» на каждом шаге.
+
 ## Порядок развёртывания
 
-Доки рассчитаны на последовательное применение — каждая следующая предполагает, что предыдущая уже выполнена:
+Ниже — детальные доки, рассчитанные на последовательное применение (каждая следующая предполагает, что предыдущая уже выполнена) и на разбор конкретных граблей глубже, чем в быстром старте:
 
 1. **[VictoriaMetrics + Grafana Monitoring Stack на kind](docs/victoriametrics-grafana-monitoring-on-kind.md)** — создание kind-кластера, установка `victoria-metrics-k8s-stack` (VMSingle, VMAgent, VMAlert, Grafana).
 2. **[Развёртывание PostgreSQL кластера с мониторингом](docs/postgres-cluster-deployment-with-monitoring.md)** — Zalando `postgres-operator`, кластер из 3 инстансов с sidecar `prometheus-postgres-exporter`, дашборд в Grafana.

@@ -58,7 +58,7 @@ kubectl get operatorconfiguration postgres-operator -n postgres-operator \
 
 ## Шаг 2. Обновить CRD для поддержки версии 18
 
-По умолчанию CRD оператора версии 1.15.1 поддерживает PostgreSQL только до версии 17. Версия 18 добавлена только в master-ветке. CRD необходимо обновлять вручную после каждого `helm upgrade` — `helm upgrade` не обновляет CRD автоматически, а флаг `--include-crds` не поддерживается в текущей версии чарта.
+По умолчанию CRD оператора версии 1.15.1 поддерживает PostgreSQL только до версии 17. Версия 18 добавлена только в master-ветке. `helm upgrade` не обновляет CRD автоматически, а флаг `--include-crds` не поддерживается в текущей версии чарта — CRD нужно патчить вручную из master-ветки.
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/zalando/postgres-operator/master/charts/postgres-operator/crds/postgresqls.yaml
@@ -71,6 +71,8 @@ kubectl get crd postgresqls.acid.zalan.do \
   -o jsonpath='{.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.postgresql.properties.version.enum}'
 # Ожидаемый результат: ["14","15","16","17","18"]
 ```
+
+> **Важно (грабли): патч CRD нужно переприменять не только после `helm upgrade`, а после КАЖДОГО (пере)старта пода оператора.** Сам оператор при старте выполняет `ensureCRDs` — ресинхронизирует CRD под свою прошитую (собранную в бинарник) схему, которая поддерживает только до версии 17, и тем самым откатывает наш патч. Это происходит не только на `helm upgrade`, но и на любом рестарте деплоймента `postgres-operator` — в том числе на приёме форсированного ресинка `kubectl rollout restart deployment postgres-operator`, который сами эти доки рекомендуют в нескольких местах ([`postgres-walg-backup-setup.md`](postgres-walg-backup-setup.md), раздел 6; troubleshooting `CreateFailed` в [`postgres-cluster-deployment-with-monitoring.md`](postgres-cluster-deployment-with-monitoring.md)). После любого такого рестарта проверяйте enum командой выше и при необходимости переприменяйте патч заново — иначе следующий `kubectl apply` манифеста с `version: "18"` упадёт с `Unsupported value: "18": supported values: "13","14","15","16","17"`.
 
 ## Шаг 3. Обновить версию в манифесте кластера
 
@@ -273,7 +275,7 @@ kubectl exec -n postgres postgres-cluster-1 -c postgres -- \
 
 | Проблема | Решение |
 |---|---|
-| CRD сбрасывается после `helm upgrade` | Повторить `kubectl apply -f` из master-ветки после каждого upgrade |
+| CRD сбрасывается (enum версии откатывается на `13-17`) после `helm upgrade` или любого рестарта пода оператора (в т.ч. `kubectl rollout restart deployment postgres-operator`) | Оператор при старте выполняет `ensureCRDs` под свою прошитую схему — переприменять `kubectl apply -f` из master-ветки после каждого такого рестарта, не только после upgrade |
 | `major_version_upgrade_mode` в `configGeneral` падает с ошибкой | Использовать отдельную секцию `configMajorVersionUpgrade` |
 | Запуск `inplace_upgrade.py` без аргументов — пустой вывод | Передать количество подов: `python3 /scripts/inplace_upgrade.py 3` |
 | Запуск от root — `initdb: error: cannot be run as root` | Запускать через `su postgres -c '...'` |
