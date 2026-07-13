@@ -52,6 +52,7 @@ experiments/
 5. **[ClickHouse + мониторинг на kind](docs/clickhouse-monitoring-stack-on-kind.md)** — Altinity `clickhouse-operator`, кластер ClickHouse (1 шард, 2 реплики), datasource и дашборд в Grafana.
 6. **[Установка pg_partman и партиционирование таблиц по дню](docs/postgres-pg-partman-setup.md)** — декларативная установка расширения через `preparedDatabases`, нативное партиционирование `PARTITION BY RANGE`, генерация тестовых данных.
 7. **[Мониторинг бэкапов WAL-G через wal-g-exporter](docs/postgres-walg-exporter-monitoring.md)** — sidecar-экспортёр метрик base backup/WAL-архива, дашборд в Grafana.
+8. *(опционально)* **[Скриншоты дашбордов через grafana-image-renderer](docs/grafana-image-renderer-setup.md)** — отдельный сервис рендеринга для визуальной проверки дашбордов без браузера.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 

@@ -18,8 +18,7 @@ experiments/
 ├── cluster/
 │   └── kind-config.yaml
 ├── monitoring/
-│   ├── vm-values.yaml
-│   └── grafana-image-renderer.yaml
+│   └── vm-values.yaml
 ```
 
 ## Шаг 1. Создание kind кластера
@@ -122,39 +121,6 @@ curl -s http://localhost:3000/api/health
 curl -s -u admin:admin http://localhost:3000/api/plugins/vertamedia-clickhouse-datasource/settings
 ```
 
-## Опционально: grafana-image-renderer
-
-Образ `grafana/grafana:11.1.0`, который используется в этом стенде, собран на Alpine — headless Chromium из плагина `grafana-image-renderer` на Alpine/musl не запускается. Поэтому рендерер разворачивается отдельным сервисом (`grafana/grafana-image-renderer:3.12.4`, собственный образ на glibc с Chromium) и подключается к Grafana через `GF_RENDERING_SERVER_URL`. Нужен для скриншотов дашбордов через `/render/...` API (например, при отладке — визуально проверить дашборд без браузера у оператора).
-
-```yaml
-# monitoring/grafana-image-renderer.yaml
-apiVersion: apps/v1
-kind: Deployment
-...
-```
-
-```bash
-kubectl apply -f monitoring/grafana-image-renderer.yaml
-```
-
-В `monitoring/vm-values.yaml` добавлены переменные окружения Grafana:
-
-```yaml
-  env:
-    GF_RENDERING_SERVER_URL: "http://grafana-image-renderer.monitoring.svc.cluster.local:8081/render"
-    GF_RENDERING_CALLBACK_URL: "http://vm-grafana.monitoring.svc.cluster.local:80/"
-```
-
-Применить: `helm upgrade vm vm/victoria-metrics-k8s-stack --namespace monitoring --values monitoring/vm-values.yaml`.
-
-Проверка (после port-forward Grafana на 3000):
-
-```bash
-curl -s -o dashboard.png -u admin:admin \
-  "http://localhost:3000/render/d/<uid>/<slug>?width=1400&height=1000&from=now-24h&to=now&kiosk"
-file dashboard.png   # должен быть PNG, а не текст "No image renderer available/installed"
-```
-
 ## Проверка
 
 | Компонент | Команда |
@@ -163,4 +129,7 @@ file dashboard.png   # должен быть PNG, а не текст "No image r
 | Поды стека мониторинга | `kubectl get pods -n monitoring` |
 | Health check Grafana | `curl -s http://localhost:3000/api/health` (после port-forward) |
 | Таргеты VMAgent | `kubectl port-forward -n monitoring svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429` → http://localhost:8429/targets |
-| grafana-image-renderer | `kubectl get pods -n monitoring -l app=grafana-image-renderer` (`1/1 Running`) |
+
+## Дальше
+
+Опционально: [скриншоты дашбордов через grafana-image-renderer](grafana-image-renderer-setup.md) — для визуальной проверки дашбордов без браузера (например, при отладке).

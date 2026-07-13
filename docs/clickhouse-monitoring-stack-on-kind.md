@@ -268,7 +268,7 @@ kubectl apply -f -
 
 Все три правки уже внесены в `monitoring/dashboards/ClickHouse_Queries_dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
 
-Диагностика такого рода ошибок (панель молча показывает «No data») требует реального рендера — прямые запросы к ClickHouse через `datasource/proxy` с руками подобранными параметрами могут случайно воспроизводить другой (рабочий) вариант запроса. Надёжный способ — включить debug-логи плагина datasource (`kubectl set env deployment/vm-grafana -n monitoring GF_LOG_FILTERS="plugin.vertamedia-clickhouse-datasource:debug"`) и посмотреть логи `grafana-image-renderer` — headless Chromium логирует ошибки консоли браузера с полным URL, включая точный сгенерированный SQL:
+Диагностика такого рода ошибок (панель молча показывает «No data») требует реального рендера — прямые запросы к ClickHouse через `datasource/proxy` с руками подобранными параметрами могут случайно воспроизводить другой (рабочий) вариант запроса. Надёжный способ — включить debug-логи плагина datasource (`kubectl set env deployment/vm-grafana -n monitoring GF_LOG_FILTERS="plugin.vertamedia-clickhouse-datasource:debug"`) и посмотреть логи `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) — headless Chromium логирует ошибки консоли браузера с полным URL, включая точный сгенерированный SQL:
 
 ```bash
 kubectl logs -n monitoring -l app=grafana-image-renderer --tail=200 | grep -i "500\|error"
