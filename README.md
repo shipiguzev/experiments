@@ -12,10 +12,12 @@ experiments/
 │   └── kind-config.yaml                       # конфиг kind-кластера (1 control-plane + 3 worker)
 ├── monitoring/
 │   ├── vm-values.yaml                         # values для victoria-metrics-k8s-stack
+│   ├── grafana-image-renderer.yaml            # опциональный сервис рендеринга скриншотов дашбордов
 │   ├── clickhouse-datasource-cm.yaml          # ClickHouse datasource для Grafana
 │   └── dashboards/
 │       ├── postgresql-cluster-overview.json
-│       └── Altinity_ClickHouse_Operator_dashboard.json
+│       ├── Altinity_ClickHouse_Operator_dashboard.json
+│       └── ClickHouse_Queries_dashboard.json
 ├── postgres/
 │   ├── operator/
 │   │   ├── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)

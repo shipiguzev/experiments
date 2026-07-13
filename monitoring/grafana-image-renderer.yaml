@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+  labels:
+    app: grafana-image-renderer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-image-renderer
+  template:
+    metadata:
+      labels:
+        app: grafana-image-renderer
+    spec:
+      containers:
+        - name: grafana-image-renderer
+          image: grafana/grafana-image-renderer:3.12.4
+          ports:
+            - containerPort: 8081
+          env:
+            - name: ENABLE_METRICS
+              value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+  labels:
+    app: grafana-image-renderer
+spec:
+  selector:
+    app: grafana-image-renderer
+  ports:
+    - port: 8081
+      targetPort: 8081

@@ -5,6 +5,11 @@ metadata:
   namespace: clickhouse
 spec:
   configuration:
+    profiles:
+      # readonly=1 (built-in default) blocks changing settings via SETTINGS clause,
+      # which breaks Grafana panels that send `SETTINGS skip_unavailable_shards=1`.
+      # readonly=2 still forbids INSERT/ALTER/DDL, but allows settings overrides.
+      readonly/readonly: 2
     users:
       monitoring/password: "monitoring"
       monitoring/networks/ip:

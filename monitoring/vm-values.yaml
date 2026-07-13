@@ -7,6 +7,8 @@ grafana:
     - vertamedia-clickhouse-datasource
   env:
     GF_INSTALL_PLUGINS: "vertamedia-clickhouse-datasource 3.4.11"
+    GF_RENDERING_SERVER_URL: "http://grafana-image-renderer.monitoring.svc.cluster.local:8081/render"
+    GF_RENDERING_CALLBACK_URL: "http://vm-grafana.monitoring.svc.cluster.local:80/"
   sidecar:
     dashboards:
       folderAnnotation: grafana_folder

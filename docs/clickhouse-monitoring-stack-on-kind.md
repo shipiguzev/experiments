@@ -23,7 +23,8 @@ experiments/
 │   ├── vm-values.yaml
 │   ├── clickhouse-datasource-cm.yaml
 │   └── dashboards/
-│       └── Altinity_ClickHouse_Operator_dashboard.json
+│       ├── Altinity_ClickHouse_Operator_dashboard.json
+│       └── ClickHouse_Queries_dashboard.json
 └── clickhouse/
     ├── operator/
     │   └── clickhouse-operator-values.yaml
@@ -230,7 +231,7 @@ curl -s -u admin:admin -X POST http://localhost:3000/api/datasources/uid/$DS_UID
 
 ## Шаг 5. Деплой дашборда
 
-Дашборды деплоятся аналогично datasource — через ConfigMap с лейблом `grafana_dashboard: "1"`. Sidecar-контейнер Grafana отслеживает такие ConfigMap и автоматически загружает JSON файлы дашбордов.
+Дашборды деплоятся аналогично datasource — через ConfigMap с лейблом `grafana_dashboard: "1"`. Sidecar-контейнер Grafana отслеживает такие ConfigMap и автоматически загружает JSON файлы дашбордов. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`, уже включено там же, где и для дашбордов PostgreSQL/WAL-G).
 
 Такой подход позволяет:
 
@@ -247,10 +248,44 @@ kubectl create configmap altinity-clickhouse-operator-dashboard \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
 kubectl apply -f -
 ```
 
 Дашборд появится в Grafana автоматически через 15-20 секунд.
+
+### ClickHouse Queries dashboard
+
+Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.
+
+Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Поскольку в кластере всего один датасорс этого типа (`chi-test`, созданный в Шаге 4), Grafana подставляет его автоматически — вручную выбирать в UI не нужно.
+
+**Известные особенности upstream-JSON (требуют правки перед деплоем):**
+
+- Переменные `type`, `user`, `query_kind` (тип `query`, датасорс `$db`) хранят `query` как обычную строку — legacy-формат Grafana. Плагин `vertamedia-clickhouse-datasource` не реализует миграцию такого формата, из-за чего при загрузке дашборда всплывает баннер `Templating / Failed to upgrade legacy queries`. Фикс — привести `query` к объектному виду `{"query": "<тот же SQL>", "refId": "<name>-Variable-Query"}`, как уже сделано для `exported_namespace`/`chi` и во всех остальных дашбордах репозитория.
+- Переменные `exported_namespace` и `chi` ссылаются на `${DS_PROMETHEUS}` — Prometheus datasource из оригинального экспорта, которого в кластере нет. Строковая (не объектная) ссылка на несуществующий датасорс — это и есть основная причина баннера `Failed to upgrade legacy queries`: Grafana не может смигрировать её в объектный `{type, uid}` формат. Хотя сами переменные нигде не используются в запросах панелей, их нужно починить, иначе дашборд не грузится целиком. Фикс — заменить `datasource` на реальный объект `{"type": "prometheus", "uid": "VictoriaMetrics"}` (наш VictoriaMetrics datasource агрегирует ровно те метрики оператора — `chi_clickhouse_metric_*` с лейблами `exported_namespace`/`chi` — на которые эти переменные и рассчитаны).
+
+Обе правки уже внесены в `monitoring/dashboards/ClickHouse_Queries_dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
+
+```bash
+curl -s https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/grafana-dashboard/ClickHouse_Queries_dashboard.json \
+  -o monitoring/dashboards/ClickHouse_Queries_dashboard.json
+kubectl create configmap clickhouse-queries-dashboard \
+  --from-file=monitoring/dashboards/ClickHouse_Queries_dashboard.json \
+  --namespace monitoring \
+  --dry-run=client -o yaml | \
+kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
+kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
+kubectl apply -f -
+```
+
+Проверить, что датасорс реально отвечает на запросы (тот же путь, что использует панель дашборда — proxy к ClickHouse через Grafana):
+
+```bash
+DS_UID=$(curl -s -u admin:admin http://localhost:3000/api/datasources | python3 -c "import json,sys; print([d['uid'] for d in json.load(sys.stdin) if d['name']=='chi-test'][0])")
+curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_UID/" \
+  --data-urlencode "query=SELECT count() FROM system.query_log FORMAT JSON"
+```
 
 ## Шаг 6. Доступ к Grafana
 
@@ -274,4 +309,4 @@ kubectl port-forward -n monitoring svc/vm-grafana 3000:80
 | VMServiceScrape | `kubectl get vmservicescrape -n monitoring clickhouse-operator` (`operational`) |
 | Таргеты VMAgent | `kubectl port-forward -n monitoring svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429` → http://localhost:8429/targets — оба порта (`ch-metrics`, `op-metrics`) должны быть `up` |
 | Datasource в Grafana | `curl -s -u admin:admin http://localhost:3000/api/datasources` — должен быть `chi-test` типа `vertamedia-clickhouse-datasource` |
-| Дашборд в Grafana | `curl -s -u admin:admin "http://localhost:3000/api/search?query=ClickHouse"` — должен вернуть `Altinity ClickHouse Operator Dashboard` |
+| Дашборды в Grafana | `curl -s -u admin:admin "http://localhost:3000/api/search?query=ClickHouse"` — должны вернуться `Altinity ClickHouse Operator Dashboard` и `Altinity ClickHouse Queries`, оба в папке `Databases` |
