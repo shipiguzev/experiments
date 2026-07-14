@@ -1216,12 +1216,13 @@
         "options": [],
         "query": {
           "query": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"}, exported_namespace)",
-          "refId": "clickhouse-operator-prometheus-exported_namespace-Variable-Query"
+          "refId": "clickhouse-operator-prometheus-exported_namespace-Variable-Query",
+          "qryType": 1
         },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
@@ -1246,12 +1247,13 @@
         "options": [],
         "query": {
           "query": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\",exported_namespace=\"$exported_namespace\"}, chi)",
-          "refId": "clickhouse-operator-prometheus-chi-Variable-Query"
+          "refId": "clickhouse-operator-prometheus-chi-Variable-Query",
+          "qryType": 1
         },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 0,
+        "sort": 1,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",

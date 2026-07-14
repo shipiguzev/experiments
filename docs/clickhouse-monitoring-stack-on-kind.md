@@ -255,6 +255,13 @@ kubectl apply -f -
 
 Дашборд появится в Grafana автоматически через 15-20 секунд.
 
+**Известные особенности:** файл в этом репозитории — более новая версия дашборда (schemaVersion 39), чем актуальная на момент первого деплоя. Отличия:
+
+- Добавлена переменная `$namespace` (`label_values(chi_clickhouse_metric_Uptime, exported_namespace)`), через которую теперь цепочкой резолвятся `$chi` и `$hostname` (`$namespace → $chi → $hostname`, все три — multi-select с `Alll`). Без неё панель ниже не может фильтроваться по namespace.
+- Добавлена панель **«Throttled CPU, %»** (`container_cpu_cfs_throttled_seconds_total`). У неё есть два ограничения, оба — как в апстриме, не наши правки:
+  - `pod=~"$hostname"` сравнивает лейбл `pod` (короткое имя пода из cAdvisor) со значением `$hostname`, которое для `chi_clickhouse_metric_*` — это **FQDN** (`chi-chi-test-test-0-0.clickhouse.svc.cluster.local`). Формат не совпадает, поэтому фильтр по хосту может не сработать.
+  - Метрика `container_cpu_cfs_throttled_seconds_total` в cAdvisor вообще не появляется, пока для контейнера не задан CPU limit (throttling считается относительно quota) — на `chi-test`/`chi-test-2` в этом репозитории CPU limits не заданы, так что панель показывает «No data» до тех пор, пока их не добавить в `clickhouse/installations/chi-test*.yaml` (`resources.limits.cpu`).
+
 ### ClickHouse Queries dashboard
 
 Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.

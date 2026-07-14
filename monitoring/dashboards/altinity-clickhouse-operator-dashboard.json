@@ -39,7 +39,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 882,
   "graphTooltip": 1,
-  "id": 82,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -54,6 +54,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -67,6 +68,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
@@ -138,7 +140,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sort(avg by (hostname)(chi_clickhouse_metric_Uptime{chi=~\"$chi\",hostname=~\"$hostname\"})) OR on () vector(0)",
+          "expr": "sort(avg by (hostname)(chi_clickhouse_metric_Uptime{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})) OR on () vector(0)",
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "{{hostname}}",
@@ -149,7 +151,6 @@
         }
       ],
       "title": "Uptime (logarithmic)",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -161,6 +162,7 @@
         "rgba(245, 54, 54, 0.9)"
       ],
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Clickhouse operator metrics-exporter fails when grab metrics from clickhouse-server\n\nPlease look pods status\n\nkubectl get pods --all-namespaces | grep clickhouse",
@@ -226,6 +228,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -237,7 +240,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.3",
+      "pluginVersion": "11.1.0",
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -262,9 +265,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(chi_clickhouse_metric_fetch_errors{chi=~\"$chi\",hostname=~\"$hostname\",fetch_type=\"system_metrics\"})",
+          "editorMode": "code",
+          "expr": "sum(chi_clickhouse_metric_fetch_errors{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",fetch_type=\"system.metrics\"})",
           "intervalFactor": 2,
           "legendFormat": "",
+          "range": true,
           "refId": "A",
           "step": 60
         }
@@ -294,6 +299,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -307,6 +313,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -381,7 +388,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sort_desc(max by (hostname) (chi_clickhouse_metric_VersionInteger{chi=~\"$chi\",hostname=~\"$hostname\"}))",
+          "expr": "sort_desc(max by (hostname) (chi_clickhouse_metric_VersionInteger{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}))",
           "intervalFactor": 2,
           "legendFormat": "{{hostname}}",
           "metric": "chi_clickhouse_metric_VersionInteger",
@@ -391,7 +398,6 @@
         }
       ],
       "title": "Version",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -433,6 +439,7 @@
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -444,7 +451,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.3",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -452,7 +459,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "max(chi_clickhouse_metric_NumberOfTables{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "expr": "max(chi_clickhouse_metric_NumberOfTables{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "instant": false,
           "legendFormat": "Tables",
           "range": true,
@@ -464,7 +471,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "max(chi_clickhouse_metric_NumberOfDatabases{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "expr": "max(chi_clickhouse_metric_NumberOfDatabases{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "hide": false,
           "instant": false,
           "legendFormat": "Databases",
@@ -548,13 +555,13 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.3",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": true,
-          "expr": "max(chi_clickhouse_metric_VersionInteger{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "expr": "max(chi_clickhouse_metric_VersionInteger{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "Version",
@@ -596,6 +603,7 @@
         "rgba(245, 54, 54, 0.9)"
       ],
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Check Zookeeper connection, Disk Free space and network interconnection between replicas ASAP",
@@ -665,6 +673,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -676,7 +685,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.3",
+      "pluginVersion": "11.1.0",
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -701,9 +710,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(chi_clickhouse_metric_ReadonlyReplica{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "editorMode": "code",
+          "expr": "sum(chi_clickhouse_metric_ReadonlyReplica{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "intervalFactor": 2,
           "legendFormat": "",
+          "range": true,
           "refId": "A",
           "step": 60
         }
@@ -723,6 +734,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show DNS errors and distributed server-server connections failures",
@@ -732,6 +744,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -745,6 +758,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -823,10 +837,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_NetworkErrors{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_NetworkErrors{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "NetworkErrors {{hostname}}",
           "metric": "chi_clickhouse_event_NetworkErrors",
+          "range": true,
           "refId": "A",
           "step": 120
         },
@@ -834,10 +850,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_DistributedConnectionFailAtAll{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_DistributedConnectionFailAtAll{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "DistributedConnectionFailAtAll {{hostname}}",
           "metric": "chi_clickhouse_event_DistributedConnectionFailAtAll",
+          "range": true,
           "refId": "B",
           "step": 120
         },
@@ -869,6 +887,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show readonly and partial shutdown replicas, zookeeer exceptions, zookeeer sessions, zookeeper init requests",
@@ -878,6 +897,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -891,6 +911,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -974,11 +995,13 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ReadonlyReplica{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ReadonlyReplica{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "hide": false,
           "intervalFactor": 2,
           "legendFormat": "ReadonlyReplica {{hostname}}",
           "metric": "chi_clickhouse_metric_ReadonlyReplica",
+          "range": true,
           "refId": "D",
           "step": 120
         },
@@ -986,10 +1009,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ReplicaPartialShutdown{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ReplicaPartialShutdown{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "ReplicaPartialShutdown {{hostname}}",
           "metric": "chi_clickhouse_event_ReplicaPartialShutdown",
+          "range": true,
           "refId": "E",
           "step": 120
         },
@@ -997,11 +1022,13 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ZooKeeperUserExceptions{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ZooKeeperUserExceptions{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": true,
           "intervalFactor": 2,
           "legendFormat": "ZooKeeperUserExceptions  {{hostname}}",
           "metric": "chi_clickhouse_event_ZooKeeperUserExceptions",
+          "range": true,
           "refId": "B",
           "step": 120
         },
@@ -1009,10 +1036,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ZooKeeperInit{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ZooKeeperInit{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "ZooKeeperInit {{hostname}}",
           "metric": "chi_clickhouse_event_ZooKeeperInit",
+          "range": true,
           "refId": "A",
           "step": 120
         },
@@ -1020,10 +1049,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_metric_ZooKeeperSession{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_metric_ZooKeeperSession{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "ZooKeeperSession  {{hostname}}",
           "metric": "chi_clickhouse_metric_ZooKeeperSession",
+          "range": true,
           "refId": "C",
           "step": 120
         },
@@ -1031,10 +1062,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ZooKeeperHardwareExceptions{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ZooKeeperHardwareExceptions{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "ZooKeeperHardwareExceptions  {{hostname}}",
           "metric": "chi_clickhouse_event_ZooKeeperUserExceptions",
+          "range": true,
           "refId": "F",
           "step": 120
         }
@@ -1044,6 +1077,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "delayed query\nNumber of INSERT queries that are throttled due to high number of active data parts for partition in a *MergeTree table.\n\ndelayed blocks\nNumber of times the INSERT of a block to a *MergeTree table was throttled due to high number of active data parts for partition. \n\nrejected blocks\nNumber of times the INSERT of a block to a MergeTree table was rejected with 'Too many parts' exception due to high number of active data parts for partition.\n\n\nplease look\nparts_to_delay_insert\nparts_to_throw_insert\n\nin system.merge_tree_settings table",
@@ -1053,6 +1087,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1066,6 +1101,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -1139,9 +1175,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_DelayedInserts{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_DelayedInserts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "delayed  queries {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         },
@@ -1149,9 +1187,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_DelayedInserts{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_DelayedInserts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "delayed blocks {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 10
         },
@@ -1159,9 +1199,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_RejectedInserts{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_RejectedInserts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "rejected blocks {{hostname}}",
+          "range": true,
           "refId": "C",
           "step": 10
         },
@@ -1169,16 +1211,20 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_DistributedFilesToInsert{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_DistributedFilesToInsert{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "pending distributed files {{ hostname }}",
+          "range": true,
           "refId": "D"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_BrokenDistributedFilesToInsert{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_BrokenDistributedFilesToInsert{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "broken distributed files {{ hostname }}",
+          "range": true,
           "refId": "E"
         }
       ],
@@ -1197,6 +1243,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1211,6 +1258,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepBefore",
             "lineWidth": 0,
             "pointSize": 2,
@@ -1314,7 +1362,7 @@
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": true,
-          "expr": "max by (hostname) (max_over_time(chi_clickhouse_metric_Query{chi=~\"$chi\",hostname=~\"$hostname\"}[$__interval])-1) OR on () vector(0) > 0",
+          "expr": "max by (hostname) (max_over_time(chi_clickhouse_metric_Query{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[$__interval])-1) OR on () vector(0) > 0",
           "hide": false,
           "interval": "",
           "intervalFactor": 1,
@@ -1327,7 +1375,7 @@
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(chi_clickhouse_metric_Query{chi=~\"$chi\",hostname=~\"$hostname\"}-1) OR on () vector(0)",
+          "expr": "sum(chi_clickhouse_metric_Query{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}-1) OR on () vector(0)",
           "hide": false,
           "interval": "",
           "intervalFactor": 5,
@@ -1352,6 +1400,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1366,6 +1415,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1440,7 +1490,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(chi_clickhouse_event_SelectQuery{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])) OR on () vector(0)",
+          "expr": "sum(rate(chi_clickhouse_event_SelectQuery{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])) OR on () vector(0)",
           "hide": false,
           "intervalFactor": 2,
           "legendFormat": "Select",
@@ -1454,6 +1504,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Total amount of memory (bytes) allocated in currently executing queries. \n\nNote that some memory allocations may not be accounted.",
@@ -1463,6 +1514,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1476,6 +1528,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -1544,9 +1597,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryTracking{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryTracking{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "{{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         }
@@ -1566,6 +1621,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1579,6 +1635,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -1602,7 +1659,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1647,7 +1705,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "irate(chi_clickhouse_event_InsertQuery{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_InsertQuery{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Insert queries {{hostname}}",
           "range": true,
           "refId": "C"
@@ -1668,6 +1726,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1682,6 +1741,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -1704,7 +1764,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1755,7 +1816,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(chi_clickhouse_event_InsertQuery{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])) OR on () vector(0)",
+          "expr": "sum(rate(chi_clickhouse_event_InsertQuery{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])) OR on () vector(0)",
           "hide": false,
           "intervalFactor": 2,
           "legendFormat": "Select",
@@ -1769,6 +1830,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "## Tracks rows of inserted data.",
@@ -1778,6 +1840,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1791,6 +1854,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -1814,7 +1878,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1858,8 +1923,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_InsertedRows{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_InsertedRows{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Insert rows {{hostname}}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -1868,6 +1935,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show how intensive data exchange between replicas in parts",
@@ -1877,6 +1945,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -1890,6 +1959,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -1913,7 +1983,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2036,11 +2107,13 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedDataLoss{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedDataLoss{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "data loss {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 20
         },
@@ -2048,12 +2121,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartChecks{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartChecks{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "check {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 20
         },
@@ -2061,12 +2136,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartChecksFailed{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartChecksFailed{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "check fail {{hostname}}",
+          "range": true,
           "refId": "C",
           "step": 20
         },
@@ -2074,12 +2151,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartFetches{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartFetches{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "fetch {{hostname}}",
+          "range": true,
           "refId": "D",
           "step": 20
         },
@@ -2087,12 +2166,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartFailedFetches{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartFailedFetches{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "fetch fail {{hostname}}",
+          "range": true,
           "refId": "E",
           "step": 20
         },
@@ -2100,12 +2181,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartFetchesOfMerged{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartFetchesOfMerged{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "fetch merged {{hostname}}",
+          "range": true,
           "refId": "F",
           "step": 20
         },
@@ -2113,12 +2196,14 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "irate(chi_clickhouse_event_ReplicatedPartMerges{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "expr": "irate(chi_clickhouse_event_ReplicatedPartMerges{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
           "legendFormat": "replicated merge {{hostname}}",
+          "range": true,
           "refId": "G",
           "step": 20
         },
@@ -2126,16 +2211,20 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ReplicasSumInsertsInQueue{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ReplicasSumInsertsInQueue{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "inserts in queue {{hostname}}",
+          "range": true,
           "refId": "H"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ReplicasSumMergesInQueue{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ReplicasSumMergesInQueue{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "merges in queue {{hostname}}",
+          "range": true,
           "refId": "I"
         }
       ],
@@ -2144,6 +2233,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show seconds when replicated servers can be delayed relative to current time,  when you insert directly in *ReplicatedMegreTree table on one server clickhouse need time to replicate new parts of data to another servers in same shard in background",
@@ -2153,6 +2243,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2166,6 +2257,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -2189,7 +2281,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2277,9 +2370,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ReplicasMaxAbsoluteDelay{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ReplicasMaxAbsoluteDelay{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "absolute {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         },
@@ -2287,9 +2382,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ReplicasMaxRelativeDelay{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ReplicasMaxRelativeDelay{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "relative {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 10
         }
@@ -2299,6 +2396,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Number of requests to ZooKeeper transactions per seconds.",
@@ -2308,6 +2406,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2321,6 +2420,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -2344,7 +2444,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2391,17 +2492,21 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_ZooKeeperTransactions{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_ZooKeeperTransactions{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "transactions {{ hostname }}",
+          "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_ZooKeeperRequest{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_ZooKeeperRequest{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "hide": true,
           "legendFormat": "{{ hostname }}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -2410,6 +2515,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show how intensive background merge processes",
@@ -2419,6 +2525,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2432,6 +2539,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
@@ -2455,7 +2563,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2506,9 +2615,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_Merge{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_Merge{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "merges {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 4
         }
@@ -2518,6 +2629,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show how intensive background merge processes",
@@ -2527,6 +2639,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2540,6 +2653,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
@@ -2563,7 +2677,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2614,9 +2729,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_MergedRows{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_MergedRows{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "rows {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 4
         }
@@ -2626,6 +2743,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show how intensive background merge processes",
@@ -2635,6 +2753,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2648,6 +2767,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
@@ -2671,7 +2791,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2722,9 +2843,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_MergedUncompressedBytes{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_MergedUncompressedBytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "intervalFactor": 2,
           "legendFormat": "bytes {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 4
         }
@@ -2734,6 +2857,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "",
@@ -2743,6 +2867,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2756,6 +2881,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2779,7 +2905,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2833,8 +2960,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(hostname) (chi_clickhouse_table_parts{chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\"})",
+          "editorMode": "code",
+          "expr": "sum by(hostname) (chi_clickhouse_table_parts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\"})",
           "legendFormat": "Parts {{hostname}}",
+          "range": true,
           "refId": "C"
         }
       ],
@@ -2843,6 +2972,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "",
@@ -2852,6 +2982,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -2865,6 +2996,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2888,7 +3020,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2995,19 +3128,23 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(hostname,reason) (chi_clickhouse_metric_DetachedParts{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "editorMode": "code",
+          "expr": "sum by(hostname,reason) (chi_clickhouse_metric_DetachedParts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "interval": "",
           "legendFormat": "{{reason}} {{hostname}} ",
+          "range": true,
           "refId": "C"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by(hostname) (chi_clickhouse_table_parts{chi=~\"$chi\",hostname=~\"$hostname\",active=\"0\"})",
+          "editorMode": "code",
+          "expr": "sum by(hostname) (chi_clickhouse_table_parts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"0\"})",
           "hide": true,
           "interval": "",
           "legendFormat": "Inactive {{hostname}} ",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3016,6 +3153,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Each logical partition defined over `PARTITION BY` contains few physical data \"parts\" ",
@@ -3025,6 +3163,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3038,6 +3177,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -3061,7 +3201,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3117,9 +3258,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MaxPartCountForPartition{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MaxPartCountForPartition{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "{{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         }
@@ -3129,6 +3272,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Memory size allocated for clickhouse-server process\nAvailable for ClickHouse 20.4+\n\nVIRT \nThe total amount of virtual memory used by the task. It includes all code, data and shared libraries plus pages that have been swapped out.\n\nVIRT = SWAP + RES\n\n\nSWAP -- Swapped size (kb)\nThe swapped out portion of a task's total virtual memory image.\n\nRES -- Resident size (kb)\nThe non-swapped physical memory a task has used.\nRES = CODE + USED DATA.\n\nCODE -- Code size (kb)\nThe amount of physical memory devoted to executable code, also known as the 'text resident set' size or TRS\n\nDATA -- Data+Stack size (kb)\nThe amount of physical memory allocated to other than executable code, also known as the 'data resident set' size or DRS.\n\nSHR -- Shared Mem size (kb)\nThe amount of shared memory used by a task. It simply reflects memory that could be potentially shared with other processes.",
@@ -3138,6 +3282,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3151,6 +3296,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3174,7 +3320,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3294,40 +3441,50 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryCode{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryCode{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "CODE {{ hostname }}",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryResident{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryResident{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "RES {{ hostname }}",
+          "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryShared{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryShared{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "SHR {{ hostname }}",
+          "range": true,
           "refId": "C"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryDataAndStack{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryDataAndStack{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "DATA {{ hostname }}",
+          "range": true,
           "refId": "D"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryVirtual{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryVirtual{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "VIRT {{ hostname }}",
+          "range": true,
           "refId": "E"
         }
       ],
@@ -3336,6 +3493,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Memory size allocated for primary keys",
@@ -3345,6 +3503,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3358,6 +3517,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3381,7 +3541,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3425,8 +3586,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryPrimaryKeyBytesAllocated{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryPrimaryKeyBytesAllocated{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "{{ hostname }}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3435,6 +3598,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Memory size allocated for dictionaries",
@@ -3444,6 +3608,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3457,6 +3622,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3480,7 +3646,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3529,8 +3696,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MemoryDictionaryBytesAllocated{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MemoryDictionaryBytesAllocated{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "{{ hostname }}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3539,6 +3708,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "shows how much space available in the kubernetes pod\n\nbe careful with multiple volumes configuration, kubernetes volume claims and S3 as storage backend",
@@ -3548,6 +3718,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3561,6 +3732,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3585,7 +3757,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3634,8 +3807,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_DiskFreeBytes{chi=~\"$chi\",hostname=~\"$hostname\"} / chi_clickhouse_metric_DiskTotalBytes{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_DiskFreeBytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"} / chi_clickhouse_metric_DiskTotalBytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "{{ disk }} {{hostname}}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3665,7 +3840,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3796,13 +3972,13 @@
           }
         ]
       },
-      "pluginVersion": "10.4.3",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (database, table) (chi_clickhouse_table_parts_bytes{chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
+          "expr": "sum by (database, table) (chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -3814,7 +3990,7 @@
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (database, table) (chi_clickhouse_table_parts_rows{chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
+          "expr": "sum by (database, table) (chi_clickhouse_table_parts_rows{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -3826,7 +4002,7 @@
           "datasource": "${DS_PROMETHEUS}",
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (database, table) (chi_clickhouse_table_parts{chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
+          "expr": "sum by (database, table) (chi_clickhouse_table_parts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\", active=\"1\"})",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -3876,6 +4052,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Total data size for all ClickHouse *MergeTree tables\n\n",
@@ -3885,6 +4062,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3898,6 +4076,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3921,7 +4100,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -3965,8 +4145,10 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_DiskDataBytes{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_DiskDataBytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "legendFormat": "{{ hostname }}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -3975,6 +4157,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "BackgroundPoolTask\t\n---\nNumber of active tasks in BackgroundProcessingPool (merges, mutations, fetches, or replication queue bookkeeping)\n\n\nBackgroundMovePoolTask\n---\nNumber of active tasks in BackgroundProcessingPool for moves\n\n\nBackgroundSchedulePoolTask\t\n---\nA number of active tasks in BackgroundSchedulePool. This pool is used for periodic ReplicatedMergeTree tasks, like cleaning old data parts, altering data parts, replica re-initialization, etc.",
@@ -3984,6 +4167,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -3997,6 +4181,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4020,7 +4205,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4081,9 +4267,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_BackgroundPoolTask{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_BackgroundPoolTask{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "merge, mutate, fetch {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         },
@@ -4091,9 +4279,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_BackgroundSchedulePoolTask{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_BackgroundSchedulePoolTask{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "clean, alter, replica re-init {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 10
         },
@@ -4101,9 +4291,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_BackgroundMovePoolTask{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_BackgroundMovePoolTask{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "moves {{hostname}}",
+          "range": true,
           "refId": "C",
           "step": 10
         }
@@ -4113,6 +4305,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Number of active mutations (ALTER DELETE/ALTER UPDATE) and parts to mutate",
@@ -4122,6 +4315,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -4135,6 +4329,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -4158,7 +4353,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4212,16 +4408,20 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (hostname) (chi_clickhouse_table_mutations{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "editorMode": "code",
+          "expr": "sum by (hostname) (chi_clickhouse_table_mutations{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "legendFormat": "mutations {{hostname}}",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (hostname) (chi_clickhouse_table_mutations_parts_to_do{chi=~\"$chi\",hostname=~\"$hostname\"})",
+          "editorMode": "code",
+          "expr": "sum by (hostname) (chi_clickhouse_table_mutations_parts_to_do{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"})",
           "legendFormat": "parts_to_do {{hostname}}",
+          "range": true,
           "refId": "B"
         }
       ],
@@ -4230,6 +4430,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show which percent of mark files (.mrk) read from memory instead of disk",
@@ -4239,6 +4440,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -4252,6 +4454,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4275,7 +4478,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4324,10 +4528,12 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_MarkCacheHits{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) / (irate(chi_clickhouse_event_MarkCacheHits{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) + irate(chi_clickhouse_event_MarkCacheMisses{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]))",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_MarkCacheHits{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) / (irate(chi_clickhouse_event_MarkCacheHits{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) + irate(chi_clickhouse_event_MarkCacheMisses{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]))",
           "hide": false,
           "intervalFactor": 2,
           "legendFormat": "{{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 4
         }
@@ -4337,6 +4543,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "The time which CPU spent on various types of activity ",
@@ -4346,6 +4553,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -4359,6 +4567,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -4382,7 +4591,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4571,84 +4781,104 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_DiskReadElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_DiskReadElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": true,
           "legendFormat": "Disk Read syscall {{hostname}}",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_DiskWriteElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_DiskWriteElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": true,
           "legendFormat": "Disk Write syscall {{hostname}}",
+          "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": true,
           "legendFormat": "Network Receive {{hostname}}",
+          "range": true,
           "refId": "C"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_NetworkSendElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_NetworkSendElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": true,
           "legendFormat": "Network Send {{hostname}}",
+          "range": true,
           "refId": "D"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_RealTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_RealTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Real Time {{hostname}}",
+          "range": true,
           "refId": "E"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_UserTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_UserTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "User Time {{hostname}}",
+          "range": true,
           "refId": "F"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_SystemTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_SystemTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "System Time {{hostname}}",
+          "range": true,
           "refId": "G"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_OSIOWaitMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_OSIOWaitMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS IO Wait {{hostname}}",
+          "range": true,
           "refId": "H"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_OSCPUWaitMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_OSCPUWaitMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS CPU Wait {{hostname}}",
+          "range": true,
           "refId": "I"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_OSCPUVirtualTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_OSCPUVirtualTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS CPU Virtual {{hostname}}",
+          "range": true,
           "refId": "J"
         }
       ],
@@ -4657,6 +4887,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "The time which CPU spent on various types of activity ",
@@ -4666,6 +4897,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -4679,6 +4911,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -4702,7 +4935,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4891,36 +5125,44 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_DiskReadElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_DiskReadElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "legendFormat": "Disk Read syscall {{hostname}}",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_DiskWriteElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_DiskWriteElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "legendFormat": "Disk Write syscall {{hostname}}",
+          "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "legendFormat": "Network Receive {{hostname}}",
+          "range": true,
           "refId": "C"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "irate(chi_clickhouse_event_NetworkSendElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "irate(chi_clickhouse_event_NetworkSendElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "hide": false,
           "legendFormat": "Network Send {{hostname}}",
+          "range": true,
           "refId": "D"
         }
       ],
@@ -4929,6 +5171,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "",
@@ -4938,6 +5181,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -4951,6 +5195,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
@@ -4974,7 +5219,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -5012,11 +5258,13 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "chi_clickhouse_metric_LoadAverage1{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "expr": "chi_clickhouse_metric_LoadAverage1{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "{{hostname}}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -5031,6 +5279,7 @@
         "threshold": "0.01"
       },
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "The time which CPU spent on various types of activity total for the selected period",
@@ -5097,168 +5346,210 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_DiskReadElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_DiskReadElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Disk Read syscall {{hostname}}",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_DiskWriteElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_DiskWriteElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Disk Write syscall {{hostname}}",
+          "range": true,
           "refId": "B"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_NetworkReceiveElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Network Receive {{hostname}}",
+          "range": true,
           "refId": "C"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_NetworkSendElapsedMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_NetworkSendElapsedMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Network Send {{hostname}}",
+          "range": true,
           "refId": "D"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_RealTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_RealTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Real Time {{hostname}}",
+          "range": true,
           "refId": "E"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_UserTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_UserTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "User Time {{hostname}}",
+          "range": true,
           "refId": "F"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_SystemTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_SystemTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "System Time {{hostname}}",
+          "range": true,
           "refId": "G"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_OSIOWaitMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_OSIOWaitMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS IO Wait {{hostname}}",
+          "range": true,
           "refId": "H"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_OSCPUWaitMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_OSCPUWaitMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS CPU Wait {{hostname}}",
+          "range": true,
           "refId": "I"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_OSCPUVirtualTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_OSCPUVirtualTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "OS CPU Virtual {{hostname}}",
+          "range": true,
           "refId": "J"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ThrottlerSleepMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ThrottlerSleepMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Throttler Sleep {{hostname}}",
+          "range": true,
           "refId": "K"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_DelayedInsertsMilliseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_DelayedInsertsMilliseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
           "legendFormat": "Delayed Insert {{hostname}}",
+          "range": true,
           "refId": "L"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_ZooKeeperWaitMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_ZooKeeperWaitMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Zookeeper Wait {{hostname}}",
+          "range": true,
           "refId": "M"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_CompileExpressionsMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_CompileExpressionsMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Compile Expressions {{hostname}}",
+          "range": true,
           "refId": "N"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_MergesTimeMilliseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_MergesTimeMilliseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
           "legendFormat": "Merges {{hostname}}",
+          "range": true,
           "refId": "O"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_RWLockReadersWaitMilliseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_RWLockReadersWaitMilliseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
           "legendFormat": "RWLock Reader Wait {{hostname}}",
+          "range": true,
           "refId": "P"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_RWLockWritersWaitMilliseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_RWLockWritersWaitMilliseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m]) * 1000",
           "legendFormat": "RWLock Writer Wait {{hostname}}",
+          "range": true,
           "refId": "Q"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_SelectQueryTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_SelectQueryTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Select Query {{hostname}}",
+          "range": true,
           "refId": "R"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_InsertQueryTimeMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_InsertQueryTimeMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "Insert Query {{hostname}}",
+          "range": true,
           "refId": "S"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_S3ReadMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_S3ReadMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "S3 Read {{hostname}}",
+          "range": true,
           "refId": "T"
         },
         {
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "increase(chi_clickhouse_event_S3WriteMicroseconds{chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
+          "editorMode": "code",
+          "expr": "increase(chi_clickhouse_event_S3WriteMicroseconds{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}[1m])",
           "legendFormat": "S3 Write {{hostname}}",
+          "range": true,
           "refId": "U"
         }
       ],
@@ -5268,6 +5559,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
       "description": "Show different types of connections for each server",
@@ -5277,6 +5569,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -5290,6 +5583,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
@@ -5312,7 +5606,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -5376,9 +5671,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_TCPConnection{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_TCPConnection{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "tcp {{hostname}}",
+          "range": true,
           "refId": "A",
           "step": 10
         },
@@ -5386,9 +5683,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_HTTPConnection{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_HTTPConnection{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "http {{hostname}}",
+          "range": true,
           "refId": "B",
           "step": 10
         },
@@ -5396,9 +5695,11 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_InterserverConnection{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_InterserverConnection{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "interserver {{hostname}}",
+          "range": true,
           "refId": "C",
           "step": 10
         },
@@ -5406,28 +5707,125 @@
           "datasource": {
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "chi_clickhouse_metric_MySQLConnection{chi=~\"$chi\",hostname=~\"$hostname\"}",
+          "editorMode": "code",
+          "expr": "chi_clickhouse_metric_MySQLConnection{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\"}",
           "intervalFactor": 2,
           "legendFormat": "mysql {{hostname}}",
+          "range": true,
           "refId": "D",
           "step": 10
         }
       ],
       "title": "Connections",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.25
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "id": 64,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_cfs_throttled_seconds_total{\n    namespace=~\"$namespace\",\n    pod=~\"$hostname\",\n    container=~\"clickhouse|clickhouse-server|keeper\"\n  }[5m])\n)",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Throttled CPU, %",
+      "type": "timeseries"
     }
   ],
   "refresh": "1m",
-  "schemaVersion": 38,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
           "selected": false,
-          "text": "prometheus",
-          "value": "prometheus"
+          "text": "VictoriaMetrics",
+          "value": "P4169E866C3094E38"
         },
         "hide": 2,
         "includeAll": false,
@@ -5440,6 +5838,37 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(chi_clickhouse_metric_Uptime,exported_namespace)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(chi_clickhouse_metric_Uptime,exported_namespace)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       },
       {
         "allValue": ".*",
@@ -5456,7 +5885,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\"}, chi)",
+        "definition": "label_values({__name__=~\"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", exported_namespace=\"$namespace\"},chi)",
         "hide": 0,
         "includeAll": true,
         "label": "Cluster",
@@ -5464,8 +5893,9 @@
         "name": "chi",
         "options": [],
         "query": {
-          "query": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\"}, chi)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values({__name__=~\"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", exported_namespace=\"$namespace\"},chi)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
         "regex": "",
@@ -5492,7 +5922,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\",chi=~\"$chi\"}, hostname)",
+        "definition": "label_values({__name__=~\"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=~\"$chi\", exported_namespace=\"$namespace\"},hostname)",
         "hide": 0,
         "includeAll": true,
         "label": "Server",
@@ -5500,8 +5930,9 @@
         "name": "hostname",
         "options": [],
         "query": {
-          "query": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\",chi=~\"$chi\"}, hostname)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values({__name__=~\"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=~\"$chi\", exported_namespace=\"$namespace\"},hostname)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
         "regex": "",
@@ -5546,6 +5977,6 @@
   "timezone": "browser",
   "title": "Altinity ClickHouse Operator Dashboard",
   "uid": "clickhouse-operator",
-  "version": 20092024,
+  "version": 13,
   "weekStart": ""
 }
