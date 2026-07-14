@@ -259,7 +259,9 @@ kubectl apply -f -
 
 Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.
 
-Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Поскольку в кластере всего один датасорс этого типа (`chi-test`, созданный в Шаге 4), Grafana подставляет его автоматически — вручную выбирать в UI не нужно.
+Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Если датасорс этого типа один (`chi-test`), Grafana подставляет его автоматически; при нескольких (см. [«Несколько кластеров в разных namespace»](#несколько-кластеров-в-разных-namespace)) — выбирается вручную в UI.
+
+Переменные `$exported_namespace`/`$chi` (K8S Namespace / K8S Clickhouse Installation) связаны с `$db`: запрос `$exported_namespace` фильтрует метрики оператора по `chi="$db"`, а `$chi` в свою очередь фильтрует по `exported_namespace="$exported_namespace"` — получается цепочка `$db → $exported_namespace → $chi`. Работает это благодаря соглашению из этого репозитория: имя Grafana-датасорса всегда совпадает с именем CHI (`chi-test` датасорс ↔ `chi="chi-test"` лейбл, `chi-test-2` ↔ `chi="chi-test-2"`), поэтому лейбл `chi` в метриках оператора однозначно резолвится из значения `$db`. При выборе другого кластера в `$db` оба информационных поля переключаются автоматически, не расходясь с реально запрашиваемыми данными.
 
 **Известные особенности upstream-JSON (требуют правки перед деплоем):**
 
