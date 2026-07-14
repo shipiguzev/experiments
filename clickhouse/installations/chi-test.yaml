@@ -15,9 +15,108 @@ spec:
       monitoring/networks/ip:
         - "::/0"
       monitoring/profile: readonly
+      # Dedicated user for clickhouse-backup — needs ALTER (for FREEZE) and system table
+      # access, so it uses the unrestricted "default" profile, not "readonly". Restricted to
+      # localhost since the clickhouse-backup sidecar shares the pod's network namespace.
+      backup/password: "backup"
+      backup/networks/ip:
+        - "127.0.0.1"
+        - "::1"
+      backup/profile: default
     clusters:
       - name: "test"
+        templates:
+          podTemplate: pod-template-with-backup
+          # Deliberately NOT mounted via containers[].volumeMounts below: the operator's
+          # stsSetupVolumesUserDataWithFixedPaths only auto-mounts /var/lib/clickhouse into
+          # *every* container in the pod (including sidecars) when the data volume comes from
+          # this field. A manual volumeMounts entry on a non-"clickhouse" container is silently
+          # dropped before the StatefulSet is even created — confirmed against operator 0.27.1
+          # source (pkg/model/chi/volume/volume.go) and the live StatefulSet spec.
+          dataVolumeClaimTemplate: clickhouse-data
         layout:
           shardsCount: 1
           replicasCount: 2
+  templates:
+    podTemplates:
+      - name: pod-template-with-backup
+        spec:
+          containers:
+            - name: clickhouse
+              image: clickhouse/clickhouse-server:latest
+            - name: clickhouse-backup
+              image: altinity/clickhouse-backup:stable
+              command:
+                - clickhouse-backup
+              args:
+                - server
+                - --watch
+                # altinity/clickhouse-backup:stable doesn't support --schedule (cron) yet,
+                # only interval-based --watch. full-interval must be strictly greater than
+                # watch-interval (equal values are rejected at startup) — incremental backup
+                # every 12h, promoted to a full backup once every 24h.
+                - --watch-interval=12h
+                - --full-interval=24h
+              ports:
+                - name: backup-api
+                  containerPort: 7171
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 250m
+                  memory: 512Mi
+              env:
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: CLICKHOUSE_HOST
+                  value: "127.0.0.1"
+                - name: CLICKHOUSE_PORT
+                  value: "9000"
+                - name: CLICKHOUSE_USERNAME
+                  value: "backup"
+                - name: REMOTE_STORAGE
+                  value: "s3"
+                - name: S3_ENDPOINT
+                  value: "http://minio.minio.svc.cluster.local:9000"
+                - name: S3_BUCKET
+                  value: "clickhouse-backups"
+                # Each replica has its own independent (non-ZK-replicated) data — see
+                # "Несколько кластеров"/readonly note above — so every pod must back up to
+                # its own S3 prefix, not a shared one, otherwise replicas would overwrite
+                # each other's backups. $(POD_NAME) is unique per pod (chi-chi-test-test-0-0-0,
+                # chi-chi-test-test-0-1-0, ...).
+                - name: S3_PATH
+                  value: "chi-test/$(POD_NAME)"
+                - name: S3_REGION
+                  value: "us-east-1"
+                - name: S3_FORCE_PATH_STYLE
+                  value: "true"
+                - name: S3_DISABLE_SSL
+                  value: "true"
+                - name: BACKUPS_TO_KEEP_REMOTE
+                  value: "7"
+                # Without this, "no tables for backup" (e.g. right after a fresh bootstrap,
+                # before any table has data) is treated as a fatal error that aborts the
+                # whole --watch loop for good — not just skips one cycle.
+                - name: ALLOW_EMPTY_BACKUPS
+                  value: "true"
+                - name: API_LISTEN
+                  value: ":7171"
+                - name: API_ENABLE_METRICS
+                  value: "true"
+              envFrom:
+                - secretRef:
+                    name: clickhouse-backup-s3
+    volumeClaimTemplates:
+      - name: clickhouse-data
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
 

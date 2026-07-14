@@ -16,8 +16,10 @@ experiments/
 │   ├── clickhouse-datasource-cm.yaml          # ClickHouse datasource для Grafana
 │   └── dashboards/
 │       ├── postgresql-cluster-overview.json
+│       ├── postgresql-walg.json
 │       ├── altinity-clickhouse-operator-dashboard.json
-│       └── altinity-clickhouse-queries-dashboard.json
+│       ├── altinity-clickhouse-queries-dashboard.json
+│       └── clickhouse-backup-dashboard.json   # метрики sidecar'а clickhouse-backup
 ├── postgres/
 │   ├── operator/
 │   │   ├── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)
@@ -31,10 +33,14 @@ experiments/
 │   ├── operator/
 │   │   └── clickhouse-operator-values.yaml
 │   └── installations/
-│       ├── chi-test.yaml                      # CR ClickHouseInstallation (1 шард, 2 реплики)
-│       ├── chi-test-2.yaml                    # второй кластер в отдельном namespace (clickhouse-2)
+│       ├── chi-test.yaml                      # CR ClickHouseInstallation (1 шард, 2 реплики) + clickhouse-backup sidecar
+│       ├── chi-test-2.yaml                    # второй кластер в отдельном namespace (clickhouse-2), тот же backup sidecar
 │       └── monitoring/
-│           └── vmservicescrape-clickhouse-operator.yaml
+│           ├── vmservicescrape-clickhouse-operator.yaml
+│           ├── chi-test-backup-metrics-svc.yaml       # Service на порт 7171 (clickhouse-backup)
+│           ├── vmservicescrape-chi-test-backup.yaml
+│           ├── chi-test-2-backup-metrics-svc.yaml
+│           └── vmservicescrape-chi-test-2-backup.yaml
 └── docs/                                      # пошаговые инструкции (см. ниже)
 ```
 
@@ -54,6 +60,7 @@ experiments/
 6. **[Установка pg_partman и партиционирование таблиц по дню](docs/postgres-pg-partman-setup.md)** — декларативная установка расширения через `preparedDatabases`, нативное партиционирование `PARTITION BY RANGE`, генерация тестовых данных.
 7. **[Мониторинг бэкапов WAL-G через wal-g-exporter](docs/postgres-walg-exporter-monitoring.md)** — sidecar-экспортёр метрик base backup/WAL-архива, дашборд в Grafana.
 8. *(опционально)* **[Скриншоты дашбордов через grafana-image-renderer](docs/grafana-image-renderer-setup.md)** — отдельный сервис рендеринга для визуальной проверки дашбордов без браузера.
+9. **[Регулярный бэкап ClickHouse в S3 через clickhouse-backup](docs/clickhouse-backup-setup.md)** — sidecar-контейнер `clickhouse-backup` в поде `chi-test`, персистентный volume для `/var/lib/clickhouse`, инкрементальный + полный бэкап по расписанию.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 

@@ -1,0 +1,16 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: chi-test-backup
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - clickhouse
+  selector:
+    matchLabels:
+      clickhouse.altinity.com/chi: chi-test
+  endpoints:
+    - port: backup-api
+      path: /metrics
+      interval: 30s
