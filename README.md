@@ -16,8 +16,8 @@ experiments/
 │   ├── clickhouse-datasource-cm.yaml          # ClickHouse datasource для Grafana
 │   └── dashboards/
 │       ├── postgresql-cluster-overview.json
-│       ├── Altinity_ClickHouse_Operator_dashboard.json
-│       └── ClickHouse_Queries_dashboard.json
+│       ├── altinity-clickhouse-operator-dashboard.json
+│       └── altinity-clickhouse-queries-dashboard.json
 ├── postgres/
 │   ├── operator/
 │   │   ├── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)

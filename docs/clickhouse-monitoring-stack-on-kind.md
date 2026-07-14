@@ -23,8 +23,8 @@ experiments/
 │   ├── vm-values.yaml
 │   ├── clickhouse-datasource-cm.yaml
 │   └── dashboards/
-│       ├── Altinity_ClickHouse_Operator_dashboard.json
-│       └── ClickHouse_Queries_dashboard.json
+│       ├── altinity-clickhouse-operator-dashboard.json
+│       └── altinity-clickhouse-queries-dashboard.json
 └── clickhouse/
     ├── operator/
     │   └── clickhouse-operator-values.yaml
@@ -243,9 +243,9 @@ curl -s -u admin:admin -X POST http://localhost:3000/api/datasources/uid/$DS_UID
 ```bash
 mkdir -p monitoring/dashboards
 curl -s https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/grafana-dashboard/Altinity_ClickHouse_Operator_dashboard.json \
-  -o monitoring/dashboards/Altinity_ClickHouse_Operator_dashboard.json
+  -o monitoring/dashboards/altinity-clickhouse-operator-dashboard.json
 kubectl create configmap altinity-clickhouse-operator-dashboard \
-  --from-file=monitoring/dashboards/Altinity_ClickHouse_Operator_dashboard.json \
+  --from-file=monitoring/dashboards/altinity-clickhouse-operator-dashboard.json \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
@@ -257,7 +257,7 @@ kubectl apply -f -
 
 ### ClickHouse Queries dashboard
 
-Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.
+Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.
 
 Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Если датасорс этого типа один (`chi-test`), Grafana подставляет его автоматически; при нескольких (см. [«Несколько кластеров в разных namespace»](#несколько-кластеров-в-разных-namespace)) — выбирается вручную в UI.
 
@@ -271,7 +271,7 @@ kubectl apply -f -
 - Переменные `exported_namespace` и `chi` ссылаются на `${DS_PROMETHEUS}` — Prometheus datasource из оригинального экспорта, которого в кластере нет. Строковая (не объектная) ссылка на несуществующий датасорс — это и есть основная причина баннера `Failed to upgrade legacy queries`: Grafana не может смигрировать её в объектный `{type, uid}` формат. Хотя сами переменные нигде не используются в запросах панелей, их нужно починить, иначе дашборд не грузится целиком. Фикс — заменить `datasource` на реальный объект `{"type": "prometheus", "uid": "VictoriaMetrics"}` (наш VictoriaMetrics datasource агрегирует ровно те метрики оператора — `chi_clickhouse_metric_*` с лейблами `exported_namespace`/`chi` — на которые эти переменные и рассчитаны).
 - Панель «Reqs/s type: $type; user: $user; query kind: $query_kind» (id `14`) использует макрос `$rate(...)`, который в плагине `vertamedia-clickhouse-datasource` всегда разворачивается через ClickHouse-функцию `runningDifference()`. Начиная с определённой версии ClickHouse эта функция задепрекейчена и по умолчанию заблокирована (`DEPRECATED_FUNCTION: ... set allow_deprecated_error_prone_window_functions to enable it`) — панель тихо показывает «No data» без явной ошибки (старая Angular-панель не всплывает баннер на 500 от датасорса). **Не включайте** `allow_deprecated_error_prone_window_functions` — ClickHouse не просто устарел, а прямо предупреждает, что функция даёт некорректные результаты в распределённых/многоблочных запросах (а тут `cluster('all-sharded', ...)` — ровно такой случай). Фикс — переписать запрос панели на тот же безопасный паттерн с оконной функцией `lag(...) OVER (ORDER BY t)`, который уже использует соседняя панель «Top N request's rate» (бакетирование по `$interval` вместо хардкода).
 
-Все три правки уже внесены в `monitoring/dashboards/ClickHouse_Queries_dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
+Все три правки уже внесены в `monitoring/dashboards/altinity-clickhouse-queries-dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
 
 Диагностика такого рода ошибок (панель молча показывает «No data») требует реального рендера — прямые запросы к ClickHouse через `datasource/proxy` с руками подобранными параметрами могут случайно воспроизводить другой (рабочий) вариант запроса. Надёжный способ — включить debug-логи плагина datasource (`kubectl set env deployment/vm-grafana -n monitoring GF_LOG_FILTERS="plugin.vertamedia-clickhouse-datasource:debug"`) и посмотреть логи `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) — headless Chromium логирует ошибки консоли браузера с полным URL, включая точный сгенерированный SQL:
 
@@ -281,9 +281,9 @@ kubectl logs -n monitoring -l app=grafana-image-renderer --tail=200 | grep -i "5
 
 ```bash
 curl -s https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/grafana-dashboard/ClickHouse_Queries_dashboard.json \
-  -o monitoring/dashboards/ClickHouse_Queries_dashboard.json
+  -o monitoring/dashboards/altinity-clickhouse-queries-dashboard.json
 kubectl create configmap clickhouse-queries-dashboard \
-  --from-file=monitoring/dashboards/ClickHouse_Queries_dashboard.json \
+  --from-file=monitoring/dashboards/altinity-clickhouse-queries-dashboard.json \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
