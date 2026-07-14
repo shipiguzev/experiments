@@ -312,7 +312,7 @@ curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_U
 Дальше ничего вручную донастраивать не нужно — оба дашборда уже параметризованы под multi-cluster:
 
 - **Altinity ClickHouse Operator Dashboard** — единственный сервис оператора отдаёт метрики (`chi_clickhouse_metric_*`) сразу по всем CHI, которые он видит, с лейблами `exported_namespace`/`chi`. Переменные `$exported_namespace`/`$chi` на дашборде подхватывают новые значения автоматически — новый кластер просто появляется в выпадающих списках.
-- **Altinity ClickHouse Queries** — переменная `$db` (тип `datasource`, фильтр по плагину `vertamedia-clickhouse-datasource`) выводит все датасорсы этого типа, так что новый датасорс из шага 3 сразу становится доступен для выбора в дашборде без правки самого JSON.
+- **Altinity ClickHouse Queries Dashboard** — переменная `$db` (тип `datasource`, фильтр по плагину `vertamedia-clickhouse-datasource`) выводит все датасорсы этого типа, так что новый датасорс из шага 3 сразу становится доступен для выбора в дашборде без правки самого JSON.
 
 Проверка, что новый кластер реально виден по обоим путям:
 
@@ -347,6 +347,6 @@ kubectl port-forward -n monitoring svc/vm-grafana 3000:80
 | VMServiceScrape | `kubectl get vmservicescrape -n monitoring clickhouse-operator` (`operational`) |
 | Таргеты VMAgent | `kubectl port-forward -n monitoring svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429` → http://localhost:8429/targets — оба порта (`ch-metrics`, `op-metrics`) должны быть `up` |
 | Datasource в Grafana | `curl -s -u admin:admin http://localhost:3000/api/datasources` — должен быть `chi-test` типа `vertamedia-clickhouse-datasource` |
-| Дашборды в Grafana | `curl -s -u admin:admin "http://localhost:3000/api/search?query=ClickHouse"` — должны вернуться `Altinity ClickHouse Operator Dashboard` и `Altinity ClickHouse Queries`, оба в папке `Databases` |
+| Дашборды в Grafana | `curl -s -u admin:admin "http://localhost:3000/api/search?query=ClickHouse"` — должны вернуться `Altinity ClickHouse Operator Dashboard` и `Altinity ClickHouse Queries Dashboard`, оба в папке `Databases` |
 | Второй кластер (`chi-test-2`) | `kubectl get chi -n clickhouse-2` (`STATUS: Completed`), `kubectl get pods -n clickhouse-2` (оба пода `1/1 Running`) |
 | Метрики второго кластера | `curl -s "http://localhost:8428/api/v1/label/chi/values"` (после port-forward vmsingle) — должны быть и `chi-test`, и `chi-test-2` |

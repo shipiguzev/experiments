@@ -1467,7 +1467,7 @@
     ]
   },
   "timezone": "browser",
-  "title": "Altinity ClickHouse Queries",
+  "title": "Altinity ClickHouse Queries Dashboard",
   "uid": "clickhouse-queries",
   "version": 20230912
 }
