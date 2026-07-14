@@ -20,4 +20,15 @@ data:
         jsonData:
           usePost: true
           defaultDatabase: default
+      - name: chi-test-2
+        type: vertamedia-clickhouse-datasource
+        url: http://clickhouse-chi-test-2.clickhouse-2.svc.cluster.local:8123
+        access: proxy
+        basicAuth: true
+        basicAuthUser: monitoring
+        secureJsonData:
+          basicAuthPassword: monitoring
+        jsonData:
+          usePost: true
+          defaultDatabase: default
 

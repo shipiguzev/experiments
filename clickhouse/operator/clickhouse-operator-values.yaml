@@ -5,6 +5,7 @@ configs:
         namespaces:
           include:
             - clickhouse
+            - clickhouse-2
 metrics:
   enabled: true
 

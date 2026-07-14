@@ -30,6 +30,7 @@ experiments/
     │   └── clickhouse-operator-values.yaml
     └── installations/
         ├── chi-test.yaml
+        ├── chi-test-2.yaml                    # второй кластер в отдельном namespace, см. "Несколько кластеров"
         └── monitoring/
             └── vmservicescrape-clickhouse-operator.yaml
 ```
@@ -44,7 +45,7 @@ experiments/
 
 В values мы задаём два ключевых параметра:
 
-- `watch.namespaces.include: [clickhouse]` — оператор будет следить только за namespace `clickhouse`. Без этого параметра оператор смотрит только на свой собственный namespace и не увидит CHI в других namespace.
+- `watch.namespaces.include: [clickhouse, clickhouse-2]` — список namespace, за которыми следит оператор. Без этого параметра оператор смотрит только на свой собственный namespace и не увидит CHI в других namespace. Список нужно расширять при добавлении новых кластеров в новые namespace — см. [«Несколько кластеров в разных namespace»](#несколько-кластеров-в-разных-namespace).
 - `metrics.enabled: true` — включает экспорт метрик оператора в Prometheus-формате. Метрики доступны на портах `ch-metrics` (8888) и `op-metrics` (9999) и содержат информацию о состоянии всех ClickHouse инсталляций.
 
 ```bash
@@ -294,6 +295,32 @@ curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_U
   --data-urlencode "query=SELECT count() FROM system.query_log FORMAT JSON"
 ```
 
+## Несколько кластеров в разных namespace
+
+Один оператор умеет обслуживать много `ClickHouseInstallation` в разных namespace — под это уже рассчитаны и оператор, и оба дашборда. В репозитории вторым примером развёрнут `chi-test-2` в namespace `clickhouse-2` (`clickhouse/installations/chi-test-2.yaml`, кластер `test2`), чтобы явно проверить эту схему на практике.
+
+Что нужно на каждый новый кластер/namespace:
+
+1. **Namespace попадает в список оператора.** Добавить его в `watch.namespaces.include` в `clickhouse/operator/clickhouse-operator-values.yaml` и накатить `helm upgrade` — без этого оператор не увидит CHI в новом namespace.
+2. **Новый CHI-манифест** — копия `chi-test.yaml` с другим `metadata.name`/`namespace` и, чтобы не путать метрики/логи, другим именем кластера (`spec.configuration.clusters[].name`).
+3. **Отдельный Grafana datasource** — второй элемент в списке `datasources:` в `monitoring/clickhouse-datasource-cm.yaml`, с уникальным `name` и `url`, указывающим на балансировщик нового кластера (`clickhouse-<chi-name>.<namespace>.svc.cluster.local`).
+
+Дальше ничего вручную донастраивать не нужно — оба дашборда уже параметризованы под multi-cluster:
+
+- **Altinity ClickHouse Operator Dashboard** — единственный сервис оператора отдаёт метрики (`chi_clickhouse_metric_*`) сразу по всем CHI, которые он видит, с лейблами `exported_namespace`/`chi`. Переменные `$exported_namespace`/`$chi` на дашборде подхватывают новые значения автоматически — новый кластер просто появляется в выпадающих списках.
+- **Altinity ClickHouse Queries** — переменная `$db` (тип `datasource`, фильтр по плагину `vertamedia-clickhouse-datasource`) выводит все датасорсы этого типа, так что новый датасорс из шага 3 сразу становится доступен для выбора в дашборде без правки самого JSON.
+
+Проверка, что новый кластер реально виден по обоим путям:
+
+```bash
+# метрики оператора по новому namespace/chi (после port-forward vmsingle на 8428)
+curl -s "http://localhost:8428/api/v1/query?query=chi_clickhouse_metric_Uptime" | \
+  python3 -c "import json,sys; [print(r['metric'].get('exported_namespace'), r['metric'].get('chi')) for r in json.load(sys.stdin)['data']['result']]"
+
+# новый datasource и его health (после port-forward vm-grafana на 3000)
+curl -s -u admin:admin http://localhost:3000/api/datasources | python3 -c "import json,sys; [print(d['name'], d['url']) for d in json.load(sys.stdin) if 'chi-test' in d['name']]"
+```
+
 ## Шаг 6. Доступ к Grafana
 
 ```bash
@@ -317,3 +344,5 @@ kubectl port-forward -n monitoring svc/vm-grafana 3000:80
 | Таргеты VMAgent | `kubectl port-forward -n monitoring svc/vmagent-vm-victoria-metrics-k8s-stack 8429:8429` → http://localhost:8429/targets — оба порта (`ch-metrics`, `op-metrics`) должны быть `up` |
 | Datasource в Grafana | `curl -s -u admin:admin http://localhost:3000/api/datasources` — должен быть `chi-test` типа `vertamedia-clickhouse-datasource` |
 | Дашборды в Grafana | `curl -s -u admin:admin "http://localhost:3000/api/search?query=ClickHouse"` — должны вернуться `Altinity ClickHouse Operator Dashboard` и `Altinity ClickHouse Queries`, оба в папке `Databases` |
+| Второй кластер (`chi-test-2`) | `kubectl get chi -n clickhouse-2` (`STATUS: Completed`), `kubectl get pods -n clickhouse-2` (оба пода `1/1 Running`) |
+| Метрики второго кластера | `curl -s "http://localhost:8428/api/v1/label/chi/values"` (после port-forward vmsingle) — должны быть и `chi-test`, и `chi-test-2` |
