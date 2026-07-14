@@ -98,7 +98,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_basebackup_count{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_basebackup_count{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -159,7 +159,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_wal_archive_count{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_wal_archive_count{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -225,7 +225,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_last_basebackup_duration{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_last_basebackup_duration{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -287,7 +287,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_last_basebackup_throughput_bytes{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_last_basebackup_throughput_bytes{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -368,7 +368,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_wal_integrity_status{instance='$instance', namespace=~\"$namespace\", status=\"FAILURE\"}",
+            "expr": "walg_wal_integrity_status{instance=~\"$instance\", namespace=~\"$namespace\", status=\"FAILURE\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -431,7 +431,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_s3_diskusage{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_s3_diskusage{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -496,7 +496,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_wal_archive_missing_count{instance='$instance', namespace=~\"$namespace\"}",
+            "expr": "walg_wal_archive_missing_count{instance=~\"$instance\", namespace=~\"$namespace\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -562,7 +562,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "(time()-walg_newest_basebackup{instance='$instance', namespace=~\"$namespace\"})/60/60/24",
+            "expr": "(time()-walg_newest_basebackup{instance=~\"$instance\", namespace=~\"$namespace\"})/60/60/24",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -624,7 +624,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "walg_newest_basebackup{instance='$instance', namespace=~\"$namespace\"} * 1000",
+            "expr": "walg_newest_basebackup{instance=~\"$instance\", namespace=~\"$namespace\"} * 1000",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -641,9 +641,9 @@
       "list": [
         {
           "current": {
-            "selected": false,
-            "text": "prometheus",
-            "value": "prometheus"
+            "selected": true,
+            "text": "VictoriaMetrics",
+            "value": "VictoriaMetrics"
           },
           "hide": 0,
           "includeAll": false,
@@ -657,7 +657,7 @@
           "type": "datasource"
         },
         {
-          "allValue": "blank = nothing",
+          "allValue": "",
           "current": {
             "selected": true,
             "text": "All",
@@ -685,10 +685,11 @@
           "type": "query"
         },
         {
+          "allValue": "",
           "current": {
-            "selected": false,
-            "text": "postgres-homelab-backup-exporter.postgres.svc.cluster.local:9351",
-            "value": "postgres-homelab-backup-exporter.postgres.svc.cluster.local:9351"
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
           },
           "datasource": {
             "type": "prometheus",
@@ -696,9 +697,9 @@
           },
           "definition": "label_values(walg_basebackup_count{namespace=~\"$namespace\"}, instance)",
           "hide": 0,
-          "includeAll": false,
+          "includeAll": true,
           "label": "instance",
-          "multi": false,
+          "multi": true,
           "name": "instance",
           "options": [],
           "query": {

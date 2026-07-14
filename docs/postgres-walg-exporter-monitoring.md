@@ -103,6 +103,15 @@ kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml 
 kubectl apply -f -
 ```
 
+![PostgreSQL WAL-G Backup](images/postgresql-walg.png)
+
+> **Грабли (исправлено в этом репозитории):** апстримный JSON содержал сразу три независимых бага, из-за которых все панели показывали «No data» сразу после первого деплоя:
+> 1. Переменная `namespace` имела `"allValue": "blank = nothing"` — буквальное значение (а не служебный плейсхолдер), которое Grafana подставляет вместо `$namespace` при дефолтном выборе `All`. Запросы превращались в `namespace=~"blank = nothing"` и не матчились никогда.
+> 2. Переменная `datasource` (тип `datasource`) была захардкожена на `current.value = "prometheus"` — это не UID реального датасорса, а общий идентификатор типа плагина из апстримного экспорта.
+> 3. Переменная `instance` была `multi: false` с захардкоженным `current` на несуществующий хост апстрима (`postgres-homelab-backup-exporter...`), и все панели фильтровали через точное равенство `instance='$instance'`.
+>
+> Исправлено: `allValue` очищен (пустая строка), `datasource` указывает на реальный датасорс `VictoriaMetrics` (единственный VictoriaMetrics-датасорс, который этот стенд вообще разворачивает — см. `monitoring/vm-values.yaml`), `instance` переведён на `multi: true` + `includeAll: true` с дефолтом `All` (аналогично `namespace`), панели — на `instance=~"$instance"` (regex-match). Как и `namespace`, инстанс всегда резолвится в единственное значение (метрики отдаёт только текущий Leader — см. раздел 1), поэтому `All` по регэкспу эквивалентен точному совпадению, но не привязан к конкретному под-IP, который меняется при каждом передеплое.
+
 ## 5. Метрики
 
 | Метрика | Описание |

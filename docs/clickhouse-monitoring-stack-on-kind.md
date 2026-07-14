@@ -255,12 +255,20 @@ kubectl apply -f -
 
 Дашборд появится в Grafana автоматически через 15-20 секунд.
 
+![Altinity ClickHouse Operator Dashboard](images/altinity-clickhouse-operator-dashboard.png)
+
 **Известные особенности:** файл в этом репозитории — более новая версия дашборда (schemaVersion 39), чем актуальная на момент первого деплоя. Отличия:
 
 - Добавлена переменная `$namespace` (`label_values(chi_clickhouse_metric_Uptime, exported_namespace)`), через которую теперь цепочкой резолвятся `$chi` и `$hostname` (`$namespace → $chi → $hostname`, все три — multi-select с `Alll`). Без неё панель ниже не может фильтроваться по namespace.
 - Добавлена панель **«Throttled CPU, %»** (`container_cpu_cfs_throttled_seconds_total`). У неё есть два ограничения, оба — как в апстриме, не наши правки:
   - `pod=~"$hostname"` сравнивает лейбл `pod` (короткое имя пода из cAdvisor) со значением `$hostname`, которое для `chi_clickhouse_metric_*` — это **FQDN** (`chi-chi-test-test-0-0.clickhouse.svc.cluster.local`). Формат не совпадает, поэтому фильтр по хосту может не сработать.
   - Метрика `container_cpu_cfs_throttled_seconds_total` в cAdvisor вообще не появляется, пока для контейнера не задан CPU limit (throttling считается относительно quota) — на `chi-test`/`chi-test-2` в этом репозитории CPU limits не заданы, так что панель показывает «No data» до тех пор, пока их не добавить в `clickhouse/installations/chi-test*.yaml` (`resources.limits.cpu`).
+
+**Грабли (исправлено в этом репозитории):** панель `Failed...` (stat, `chi_clickhouse_metric_fetch_errors`) фильтровала по `fetch_type="system.metrics"` (через точку) — реальный оператор (используемая здесь версия `altinity-clickhouse-operator` 0.27.1) экспортирует это же значение лейбла как `system_metrics` (через подчёркивание). Фильтр никогда не матчился, панель показывала «No data» вместо настоящего значения (в норме `0`). Исправлено на `fetch_type="system_metrics"`.
+
+**Известное ограничение upstream-JSON (не фиксили):** панель `Background Tasks` ссылается на метрику `chi_clickhouse_metric_BackgroundPoolTask`, которой в ClickHouse 26.x уже не существует — апстрим разбил единый пул на несколько (`BackgroundMergesAndMutationsPoolTask`, `BackgroundFetchesPoolTask`, `BackgroundCommonPoolTask` и др.), и панель отражает только часть картины (данные по `BackgroundSchedulePoolTask`/`BackgroundMovePoolTask` есть, по `BackgroundPoolTask` — нет). Панель не пустая целиком, поэтому не патчили — при желании показать полную картину нужно просуммировать актуальный набор `chi_clickhouse_metric_Background*PoolTask` метрик, что меняет семантику панели относительно апстрима.
+
+Все остальные «No data» на этом дашборде (`DNS and Distributed Connection Errors`, `Replication and ZooKeeper Exceptions`, `Zookeeper Transactions`, `Insert Queries (running)`, `Detached parts`, `Mutations`) — легитимное отсутствие данных, а не баги: в этом стенде нет ZooKeeper/Keeper (реплики независимы, см. Шаг 3), ни разу не выполнялся реальный `INSERT` в ClickHouse, и нет отсоединённых партов/мутаций. Проверено напрямую через `system.events`/`system.mutations`/`system.detached_parts` в самом ClickHouse.
 
 ### ClickHouse Queries dashboard
 
@@ -305,6 +313,10 @@ DS_UID=$(curl -s -u admin:admin http://localhost:3000/api/datasources | python3 
 curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_UID/" \
   --data-urlencode "query=SELECT count() FROM system.query_log FORMAT JSON"
 ```
+
+![Altinity ClickHouse Queries Dashboard](images/altinity-clickhouse-queries-dashboard.png)
+
+Панель `Top failed queries` пустая легитимно — в `system.query_log` этого кластера нет ни одной записи с `exception != ''` (проверено напрямую в ClickHouse), т.е. отражает реальное отсутствие ошибок, а не сломанный запрос.
 
 ## Несколько кластеров в разных namespace
 

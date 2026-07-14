@@ -838,7 +838,7 @@
             "uid": ""
           },
           "editorMode": "code",
-          "expr": "topk(100, max(pg_stat_activity_max_tx_duration{namespace=\"$namespace\"}) by (datname, state))",
+          "expr": "topk(100, max(pg_stat_activity_max_tx_duration{namespace=~\"$namespace\"}) by (datname, state))",
           "instant": false,
           "legendFormat": "{{datname}} max_tx_duration [{{state}}]",
           "range": true,
@@ -933,7 +933,7 @@
             "uid": ""
           },
           "editorMode": "code",
-          "expr": "max(pg_replication_slots_active{namespace=\"$namespace\"}) by (slot_name)",
+          "expr": "max(pg_replication_slots_active{namespace=~\"$namespace\"}) by (slot_name)",
           "instant": false,
           "legendFormat": "{{slot_name}}",
           "range": true,
@@ -1029,7 +1029,7 @@
             "uid": ""
           },
           "editorMode": "code",
-          "expr": "max(pg_replication_slots_pg_wal_lsn_diff{namespace=\"$namespace\"}) by (slot_name)",
+          "expr": "max(pg_replication_slots_pg_wal_lsn_diff{namespace=~\"$namespace\"}) by (slot_name)",
           "instant": false,
           "legendFormat": "{{slot_name}}",
           "range": true,
@@ -1326,7 +1326,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "group by (instance, version) (postgres_exporter_build_info{namespace=\"$namespace\"})",
+          "expr": "group by (instance, version) (postgres_exporter_build_info{namespace=~\"$namespace\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1433,7 +1433,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "pgbouncer_version_info{namespace=\"$namespace\"}",
+          "expr": "pgbouncer_version_info{namespace=~\"$namespace\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1540,7 +1540,7 @@
           "disableTextWrap": false,
           "editorMode": "code",
           "exemplar": false,
-          "expr": "group by (instance, version) (pgbouncer_exporter_build_info{namespace=\"$namespace\"})",
+          "expr": "group by (instance, version) (pgbouncer_exporter_build_info{namespace=~\"$namespace\"})",
           "format": "table",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
@@ -1665,7 +1665,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "group by (datname, extname, extversion, schemaname) (pg_extension_installed{namespace=\"$namespace\"})",
+          "expr": "group by (datname, extname, extversion, schemaname) (pg_extension_installed{namespace=~\"$namespace\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1786,7 +1786,7 @@
   "templating": {
     "list": [
       {
-        "allValue": "blank = nothing",
+        "allValue": "",
         "current": {
           "selected": true,
           "text": "All",
@@ -1825,7 +1825,7 @@
           "type": "prometheus",
           "uid": ""
         },
-        "definition": "label_values(patroni_version{namespace=\"$namespace\"},scope)",
+        "definition": "label_values(patroni_version{namespace=~\"$namespace\"},scope)",
         "hide": 0,
         "includeAll": false,
         "multi": false,
@@ -1833,7 +1833,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(patroni_version{namespace=\"$namespace\"},scope)",
+          "query": "label_values(patroni_version{namespace=~\"$namespace\"},scope)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -1856,7 +1856,7 @@
           "type": "prometheus",
           "uid": ""
         },
-        "definition": "label_values(patroni_version{namespace=\"$namespace\", scope=\"$scope\"},instance)",
+        "definition": "label_values(patroni_version{namespace=~\"$namespace\", scope=\"$scope\"},instance)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
@@ -1864,7 +1864,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(patroni_version{namespace=\"$namespace\", scope=\"$scope\"},instance)",
+          "query": "label_values(patroni_version{namespace=~\"$namespace\", scope=\"$scope\"},instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

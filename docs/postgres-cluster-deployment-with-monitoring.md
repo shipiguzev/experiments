@@ -257,6 +257,10 @@ kubectl apply -f -
 
 Дашборд появится в Grafana через 15-20 секунд.
 
+![PostgreSQL Cluster Overview](images/postgresql-cluster-overview.png)
+
+> **Грабли (исправлено в этом репозитории):** в апстримном JSON переменная `namespace` имела `"allValue": "blank = nothing"` — это не служебный плейсхолдер, а буквальное значение, которое Grafana подставляет вместо `$namespace` при выборе `All` (значение по умолчанию). В результате при дефолтном выборе `All` запросы `scope`/`instance`-переменных и нескольких панелей (`Top 100 Longest Transaction`, `Slot activity`, `Slot wal lsn diff`, `Installed Extensions` и др.) превращались в `namespace="blank = nothing"` и никогда не матчились — весь дашборд показывал «No data» сразу после первого деплоя, без каких-либо явных ошибок. Исправлено два независимых бага: `"allValue"` очищено (пустая строка — обычное поведение "auto" для all-value), и несколько панелей/переменных, использовавших `namespace="$namespace"` (точное равенство), переведены на `namespace=~"$namespace"` (regex-match), как и остальные панели дашборда. Панель `Postgres PVC Storage` пуста по объективной причине: `kubelet_volume_stats_*` не собираются в `kind` (нет реального CSI со volume-метриками).
+
 ## Шаг 6. Мониторинг установленных extensions
 
 Список расширений, реально установленных в каждой базе, — не то, что видно из манифеста кластера (`preparedDatabases.extensions` описывает только то, что поставил оператор при бутстрапе; расширения, добавленные вручную или другим способом, туда не попадают). Чтобы видеть актуальную картину в Grafana, используем уже подключённый, но неиспользуемый механизм `postgres-exporter-custom-queries` (см. Шаг 3) — добавляем туда SQL-запрос к `pg_extension`.
@@ -323,10 +327,24 @@ kubectl get postgresql -n postgres -w
 kubectl exec -n postgres postgres-cluster-0 -c postgres -- curl -s http://localhost:9187/metrics | grep pg_extension_installed
 ```
 
+> **Важно (грабли): гонка при добавлении ConfigMap к уже запущенному поду.** Volume `postgres-exporter-custom-queries` смонтирован с `optional: true`, поэтому при первом бутстрапе кластера (Шаг 3), когда `postgresql-exporter-custom-queries` ещё не существует, под стартует с пустым каталогом вместо файла. `postgres_exporter` перечитывает `queries.yaml` только по событию файловой системы (fsnotify) на смонтированном каталоге — а kubelet обновляет ConfigMap-volume асинхронно (обычно за 60-90 секунд после `kubectl apply`), причём само появление файла может не дать событие ровно в момент, когда экспортёр его пытается прочитать (виден `level=error msg="Failed to reload user queries" ... no such file or directory` в логах сайдкара, и на этом попытки заканчиваются — повторного реtry без нового события не будет). В результате `pg_extension_installed` не появляется вообще, хотя файл в контейнере уже фактически есть (`kubectl exec ... cat /etc/postgres-exporter/queries.yaml` покажет валидный YAML). Проверьте лог сайдкара:
+>
+> ```bash
+> kubectl logs -n postgres postgres-cluster-0 -c prometheus-postgres-exporter | grep -i "reload user queries"
+> ```
+>
+> Если там ошибка и метрики нет — не нужно пересоздавать под целиком (это вызвало бы Patroni failover на лидере). Экспортёр — самостоятельный контейнер в поде: убейте его процесс (PID 1), kubelet перезапустит только этот контейнер, `postgres`/Patroni не затронуты:
+>
+> ```bash
+> for i in 0 1 2; do kubectl exec -n postgres postgres-cluster-$i -c prometheus-postgres-exporter -- kill 1; done
+> ```
+>
+> После рестарта экспортёр читает уже присутствующий на диске файл при старте процесса (обычный путь загрузки конфига, а не fsnotify) — гонка тут не участвует.
+
 В дашборд `monitoring/dashboards/postgresql-cluster-overview.json` добавлена таблица «Installed Extensions» (панель `Extensions`) с запросом:
 
 ```promql
-group by (datname, schemaname, extname, extversion) (pg_extension_installed{namespace="$namespace"})
+group by (datname, schemaname, extname, extversion) (pg_extension_installed{namespace=~"$namespace"})
 ```
 
 > **Важно (грабли):** кластер состоит из 3 реплик, и каждая репортит свои метрики независимо — если группировать `group by` с `instance` в списке (естественный первый вариант, раз кластер, а не одна база), таблица покажет один и тот же набор расширений трижды, по разу на под. Поле `instance` нужно убрать из `group by` — тогда VictoriaMetrics схлопнет одинаковые ряды с разных подов в один, что и требуется: расширения — свойство базы данных, а не конкретной реплики.
@@ -353,3 +371,5 @@ group by (datname, schemaname, extname, extversion) (pg_extension_installed{name
 | Warning при `kubectl apply` на CRD | CRD создан Helm без аннотации, использовать `kubectl replace -f` |
 | Под не подхватывает новый образ | Удалить под вручную: `kubectl delete pod <name> -n postgres` |
 | `kubectl get postgresql` показывает `CreateFailed`, хотя все поды `2/2 Running` | Оператор ждёт готовности StatefulSet ограниченное число попыток (200 retries) и на первом, медленном (из-за загрузки образа) бутстрапе кластера успевает истечь этим таймаутом раньше, чем поднимутся все 3 пода — сами поды при этом продолжают штатно стартовать через StatefulSet. Статус в CR остаётся устаревшим до следующей синхронизации. Форсировать ресинк: `kubectl rollout restart deployment postgres-operator -n postgres-operator` |
+| Панели `PgBouncer Version` / `PgBouncer Exporter Version` на дашборде всегда пустые | Ожидаемо — PgBouncer в этом репозитории вообще не разворачивается (только Zalando `postgres-operator` + Patroni, без отдельного connection pooler'а). Панели оставлены как есть на случай, если PgBouncer добавят отдельно. |
+| Панель `Postgres PVC Storage (Used / Capacity)` пустая | Ожидаемо — метрики `kubelet_volume_stats_*` не собираются в `kind` (нет реального CSI со volume-метриками). |

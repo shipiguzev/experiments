@@ -266,7 +266,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(chi_clickhouse_metric_fetch_errors{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",fetch_type=\"system.metrics\"})",
+          "expr": "sum(chi_clickhouse_metric_fetch_errors{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",fetch_type=\"system_metrics\"})",
           "intervalFactor": 2,
           "legendFormat": "",
           "range": true,
