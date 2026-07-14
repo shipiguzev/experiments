@@ -205,7 +205,7 @@ kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml 
 kubectl apply -f -
 
 kubectl create configmap walg-exporter-dashboard \
-  --from-file=monitoring/dashboards/walg-exporter.json \
+  --from-file=monitoring/dashboards/postgresql-walg.json \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \

@@ -91,11 +91,11 @@ kubectl apply -f postgres/installations/monitoring/vmservicescrape-postgres.yaml
 
 ## 4. Дашборд в Grafana
 
-Апстрим поставляет готовый дашборд (`grafana/dashboard.json`), сохранён в репозитории как `monitoring/dashboards/walg-exporter.json`. Деплоится так же, как и остальные дашборды — ConfigMap с лейблом `grafana_dashboard=1`. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`):
+Апстрим поставляет готовый дашборд (`grafana/dashboard.json`), сохранён в репозитории как `monitoring/dashboards/postgresql-walg.json`. Деплоится так же, как и остальные дашборды — ConfigMap с лейблом `grafana_dashboard=1`. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`):
 
 ```bash
 kubectl create configmap walg-exporter-dashboard \
-  --from-file=monitoring/dashboards/walg-exporter.json \
+  --from-file=monitoring/dashboards/postgresql-walg.json \
   --namespace monitoring \
   --dry-run=client -o yaml | \
 kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
