@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-pod-config
+  namespace: {{ .Values.operatorNamespace }}
+data:
+  {{- toYaml .Values.podConfig | nindent 2 }}

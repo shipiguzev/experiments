@@ -1,0 +1,37 @@
+# docs/postgres-pg-partman-setup.md — pg_partman via preparedDatabases, databases.app owner
+# renamed to match the preparedDatabases convention (see the "ALTER DATABASE OWNER" gotcha
+# in that doc), pg_partman_bgw added to shared_preload_libraries.
+#
+# NOTE: shared_preload_libraries here deliberately does NOT include pg_cron — this overlay
+# models the historical path (cluster already bootstrapped, pg_cron identified as unused and
+# dropped, see the doc's "оставляйте только то, что реально используется" section). A
+# from-scratch deployment needs pg_cron present at first boot instead — see
+# values-production.yaml, used by docs/postgres-full-stack-from-scratch.md.
+#
+# Layer on top of the previous steps:
+#   helm upgrade postgres-cluster ./charts/postgres-cluster --namespace postgres \
+#     -f charts/postgres-cluster/values-step3-walg.yaml \
+#     -f charts/postgres-cluster/values-step4-v18.yaml \
+#     -f charts/postgres-cluster/values-step6-partman.yaml
+databases:
+  app: app_owner
+
+preparedDatabases:
+  app:
+    defaultUsers: false
+    schemas:
+      public:
+        defaultRoles: false
+        defaultUsers: false
+      partman:
+        defaultRoles: false
+        defaultUsers: false
+    extensions:
+      pg_partman: partman
+
+postgresql:
+  parameters:
+    shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_partman_bgw"
+    pg_partman_bgw.interval: "3600"
+    pg_partman_bgw.role: "app_owner"
+    pg_partman_bgw.dbname: "app"

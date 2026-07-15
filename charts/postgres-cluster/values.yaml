@@ -1,0 +1,45 @@
+# Base/default state of this chart — matches the end of
+# docs/postgres-cluster-deployment-with-monitoring.md: PostgreSQL 14, single "monitoring"-owned
+# database, prometheus-postgres-exporter sidecar only. No WAL-G, no pg_partman, no walg-exporter.
+#
+# Later docs in the walkthrough layer additional values files on top (cumulative -f flags):
+#   docs/postgres-walg-backup-setup.md        -> values-step3-walg.yaml
+#   docs/postgres-major-version-upgrade-14-to-18.md -> values-step4-v18.yaml
+#   docs/postgres-pg-partman-setup.md         -> values-step6-partman.yaml
+#   docs/postgres-walg-exporter-monitoring.md -> values-step7-walg-exporter.yaml
+#
+# For a real/from-scratch deployment (the actual state this repo runs), use
+# values-production.yaml standalone instead — see the note in that file.
+namespace: postgres
+# Namespace of the postgres-operator itself — postgres-pod-config must live here because
+# operator values reference it as "<namespace>/postgres-pod-config" (see
+# postgres/operator/postgres-operator-values.yaml: configKubernetes.pod_environment_configmap).
+operatorNamespace: postgres-operator
+
+clusterName: postgres-cluster
+teamId: test
+
+postgresql:
+  version: "14"
+  volumeSize: 1Gi
+  numberOfInstances: 3
+
+databases:
+  app: monitoring
+
+sidecars:
+  postgresExporter:
+    image: prometheuscommunity/postgres-exporter:v0.12.1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
+
+podConfig: {}
+
+monitoring:
+  namespace: monitoring
+  scrapeInterval: 30s

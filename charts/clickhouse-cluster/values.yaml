@@ -1,0 +1,47 @@
+# Defaults match the original chi-test.yaml. For the second cluster, deploy this chart
+# again as a separate release with values-test2.yaml (namespace/chiName/clusterName/S3 prefix differ).
+namespace: clickhouse
+chiName: chi-test
+clusterName: test
+
+image: clickhouse/clickhouse-server:latest
+shardsCount: 1
+replicasCount: 2
+storage: 2Gi
+
+users:
+  monitoring:
+    password: monitoring
+  backup:
+    password: backup
+
+backup:
+  # Set to false to reproduce the pre-backup state from
+  # docs/clickhouse-monitoring-stack-on-kind.md (see values-step5-base.yaml) — no backup user,
+  # no PVC, no clickhouse-backup sidecar. Backup itself is added in docs/clickhouse-backup-setup.md.
+  enabled: true
+  image: altinity/clickhouse-backup:stable
+  # full-interval must be strictly greater than watch-interval (equal values are rejected
+  # at startup) — incremental backup every watchInterval, promoted to full every fullInterval.
+  watchInterval: 12h
+  fullInterval: 24h
+  keepRemote: 7
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  s3:
+    endpoint: http://minio.minio.svc.cluster.local:9000
+    bucket: clickhouse-backups
+    # Each replica has its own independent (non-ZK-replicated) data, so every pod must back up
+    # to its own S3 prefix: S3_PATH becomes "{pathPrefix}/$(POD_NAME)".
+    pathPrefix: chi-test
+    region: us-east-1
+    secretName: clickhouse-backup-s3
+
+monitoring:
+  namespace: monitoring
+  scrapeInterval: 30s

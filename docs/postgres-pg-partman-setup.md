@@ -16,32 +16,32 @@
 
 ```
 experiments/
-└── postgres/
-    └── installations/
-        └── postgres-cluster.yaml   # добавлена секция preparedDatabases
+└── charts/
+    └── postgres-cluster/
+        └── values-step6-partman.yaml   # databases.app owner, preparedDatabases, shared_preload_libraries
 ```
 
 ## Шаг 1. Задать расширение декларативно в манифесте кластера
 
 У оператора есть отдельное поле `spec.preparedDatabases.<db>.extensions` — оператор сам выполняет `CREATE EXTENSION ... SCHEMA ...` при синхронизации, вручную заходить в базу не нужно. **Но** целевая схема расширения (`partman`) должна быть уже объявлена в `schemas` — сам оператор её для `extensions` не создаёт (см. грабли ниже).
 
+Уже собрано в `charts/postgres-cluster/values-step6-partman.yaml`:
+
 ```yaml
-# postgres/installations/postgres-cluster.yaml
-spec:
-  databases:
-    app: app_owner
-  preparedDatabases:
-    app:
-      defaultUsers: false
-      schemas:
-        public:
-          defaultRoles: false
-          defaultUsers: false
-        partman:
-          defaultRoles: false
-          defaultUsers: false
-      extensions:
-        pg_partman: partman
+databases:
+  app: app_owner
+preparedDatabases:
+  app:
+    defaultUsers: false
+    schemas:
+      public:
+        defaultRoles: false
+        defaultUsers: false
+      partman:
+        defaultRoles: false
+        defaultUsers: false
+    extensions:
+      pg_partman: partman
 ```
 
 > **Важно (грабли):** если оставить `schemas` пустым, оператор по умолчанию создаёт для `preparedDatabases` новую схему `data` с отдельным овнером `app_data_owner`. У этой новой роли нет `CONNECT` на существующую базу `app` (база создана раньше через обычное поле `databases`, а не через `preparedDatabases` с нуля) — синхронизация падает:
@@ -54,7 +54,7 @@ spec:
 >
 > При этом `kubectl get postgresql` покажет `STATUS: UpdateFailed`, но сами поды кластера это не затрагивает — падает только шаг синхронизации данных, StatefulSet и Patroni продолжают работать штатно. Лечится явным указанием уже существующей схемы `public` вместо дефолтной `data` и отключением дефолтных ролей/юзеров (`defaultRoles: false`, `defaultUsers: false`) — тогда оператор просто устанавливает расширение в уже существующую схему, без побочных ролей.
 >
-> Если синхронизация уже успела создать роли `app_data_owner`/`app_data_reader`/`app_data_writer` до того, как вы поправили манифест — удалите их вручную перед повторным `kubectl apply`:
+> Если синхронизация уже успела создать роли `app_data_owner`/`app_data_reader`/`app_data_writer` до того, как вы поправили values — удалите их вручную перед повторным `helm upgrade`:
 >
 > ```bash
 > kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "
@@ -78,19 +78,23 @@ spec:
 > Официальный путь миграции с `databases` на `preparedDatabases` ([docs/user.md](https://github.com/zalando/postgres-operator/blob/master/docs/user.md), раздел "From `databases` to `preparedDatabases`") — сделать так, чтобы имя владельца в `databases` совпадало с конвенцией `<dbname>_owner` из `preparedDatabases`, тогда это буквально одна и та же роль:
 >
 > ```yaml
-> spec:
->   databases:
->     app: app_owner   # было: app: monitoring
+> databases:
+>   app: app_owner   # было: app: monitoring
 > ```
 >
 > Роли синхронизируются раньше баз, поэтому при таком изменении оператор сам выполняет `ALTER DATABASE app OWNER TO app_owner;` (см. `executeAlterDatabaseOwner` в `pkg/cluster/database.go`) — `app_owner` становится настоящим владельцем базы и получает `CREATE` неявно, без ручного `GRANT`. Старая роль (`monitoring`), если она больше нигде не используется, может остаться в `users:` как есть — оператор не отбирает у неё существующие привилегии, она просто перестаёт быть владельцем `app`.
 >
 > Ручной `GRANT CREATE ON DATABASE app TO app_owner;` работает как временный обход, но это фактическая правка состояния БД в обход манифеста — при пересоздании кластера (новый `preparedDatabases`-овнер, новая база) грабли вернутся. Правка имени владельца в `databases:` устраняет проблему декларативно и навсегда.
 
-Примените манифест:
+Примените — с накоплением всех `-f` из предыдущих доков этой цепочки:
 
 ```bash
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml \
+  --values charts/postgres-cluster/values-step3-walg.yaml \
+  --values charts/postgres-cluster/values-step4-v18.yaml \
+  --values charts/postgres-cluster/values-step6-partman.yaml
 kubectl get postgresql -n postgres postgres-cluster
 # STATUS должен быть Running
 ```
@@ -247,18 +251,15 @@ FROM generate_series(current_date - 6, current_date, interval '1 day') d,
 
 > **Важно (грабли):** `pg_partman_bgw` и `pg_partman` — не одно и то же для `shared_preload_libraries`. `pg_partman` — чистое SQL/PLpgSQL-расширение, у него нет `.so`-файла (проверяется через `pg_config --pkglibdir` внутри пода Spilo — там лежит только `pg_partman_bgw.so`). Если вписать в `shared_preload_libraries` `pg_partman` вместо `pg_partman_bgw`, постмастер не найдёт файл библиотеки и не поднимется **ни на одном из подов кластера** после рестарта — это полный outage, а не safe rolling restart. В список нужно добавлять только `pg_partman_bgw`.
 
-Включается через `spec.postgresql.parameters` в манифесте кластера:
+Включается через `postgresql.parameters` в values чарта — те же три `pg_partman_bgw.*` ключа и обновлённый `shared_preload_libraries`, что уже были в `values-step6-partman.yaml` из Шага 1 (это один и тот же файл, здесь просто разбирается смысл этих конкретных полей):
 
 ```yaml
-# postgres/installations/postgres-cluster.yaml
-spec:
-  postgresql:
-    version: "18"
-    parameters:
-      shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_partman_bgw"
-      pg_partman_bgw.interval: "3600"
-      pg_partman_bgw.role: "app_owner"
-      pg_partman_bgw.dbname: "app"
+postgresql:
+  parameters:
+    shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_partman_bgw"
+    pg_partman_bgw.interval: "3600"
+    pg_partman_bgw.role: "app_owner"
+    pg_partman_bgw.dbname: "app"
 ```
 
 - `pg_partman_bgw.interval` — как часто (в секундах) воркер вызывает `run_maintenance_proc()`; `3600` — раз в час.
@@ -270,12 +271,17 @@ spec:
 > kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -c "SHOW shared_preload_libraries;"
 > ```
 >
-> и переносить в манифест полный список + добавляемый элемент, а не только его.
+> и переносить в values полный список + добавляемый элемент, а не только его.
 
-Примените манифест — параметр требует рестарта Postgres, оператор сам выполнит rolling restart (сначала реплики, затем лидер):
+Если ещё не применяли `values-step6-partman.yaml` из Шага 1 — сделайте это сейчас (параметр требует рестарта Postgres, оператор сам выполнит rolling restart: сначала реплики, затем лидер):
 
 ```bash
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml \
+  --values charts/postgres-cluster/values-step3-walg.yaml \
+  --values charts/postgres-cluster/values-step4-v18.yaml \
+  --values charts/postgres-cluster/values-step6-partman.yaml
 kubectl get postgresql -n postgres postgres-cluster -w
 # STATUS: Updating -> Running
 ```
@@ -317,7 +323,7 @@ kubectl exec -n postgres postgres-cluster-0 -c postgres -- psql -U postgres -d <
   > -- пусто = зависимостей снаружи расширения нет, CASCADE безопасен
   > ```
 
-> **Важно (грабли): убирать `pg_cron` из `shared_preload_libraries` можно только на уже забутстрапленном кластере, а не в манифесте, с которого поднимается кластер с нуля.** Встроенный в образ Spilo `/scripts/post_init.sh` при первом бутстрапе безусловно выполняет `CREATE EXTENSION IF NOT EXISTS pg_cron SCHEMA pg_catalog;` в базе `postgres` — это часть штатной инициализации Spilo, никак не связанная с нашим `preparedDatabases`. Если в `shared_preload_libraries` на момент первого старта пода нет `pg_cron`, GUC `cron.database_name` не зарегистрирован (для незагруженного расширения Postgres трактует `namespace.param` как пустой placeholder), сверка `current_database() = current_setting('cron.database_name')` внутри `pg_cron--1.0.sql` не проходит, `post_init.sh` завершается с ненулевым кодом, и Patroni считает бутстрап проваленным — после 5 попыток runit останавливает Patroni насовсем (под остаётся `3/3 Running`, но ни Patroni, ни Postgres внутри уже не работают; чинится только удалением пода, штатный рестарт контейнера не помогает). Итоговый манифест этого стенда (см. `postgres/installations/postgres-cluster.yaml`) уже не содержит `pg_cron` в `shared_preload_libraries` — это конечное состояние ПОСЛЕ настоящего шага чистки, снятое с кластера, который уже был живым на момент чистки. Разворачивая кластер с нуля (новый kind-кластер, пустые PVC) по этому манифесту как есть, нужно временно вернуть `pg_cron` в список для первого бутстрапа и убрать его только после того, как кластер поднимется и `preparedDatabases`/pg_partman синхронизируются — то есть повторить путь этого раздела заново, а не копировать итоговую строку.
+> **Важно (грабли): убирать `pg_cron` из `shared_preload_libraries` можно только на уже забутстрапленном кластере, а не в манифесте, с которого поднимается кластер с нуля.** Встроенный в образ Spilo `/scripts/post_init.sh` при первом бутстрапе безусловно выполняет `CREATE EXTENSION IF NOT EXISTS pg_cron SCHEMA pg_catalog;` в базе `postgres` — это часть штатной инициализации Spilo, никак не связанная с нашим `preparedDatabases`. Если в `shared_preload_libraries` на момент первого старта пода нет `pg_cron`, GUC `cron.database_name` не зарегистрирован (для незагруженного расширения Postgres трактует `namespace.param` как пустой placeholder), сверка `current_database() = current_setting('cron.database_name')` внутри `pg_cron--1.0.sql` не проходит, `post_init.sh` завершается с ненулевым кодом, и Patroni считает бутстрап проваленным — после 5 попыток runit останавливает Patroni насовсем (под остаётся `3/3 Running`, но ни Patroni, ни Postgres внутри уже не работают; чинится только удалением пода, штатный рестарт контейнера не помогает). `charts/postgres-cluster/values-step6-partman.yaml` в этом репозитории уже не содержит `pg_cron` в `shared_preload_libraries` — это конечное состояние ПОСЛЕ настоящего шага чистки, снятое с кластера, который уже был живым на момент чистки (исторический путь доков 2→3→4→6→7). Разворачивая кластер с нуля (новый kind-кластер, пустые PVC), нужно временно вернуть `pg_cron` в список для первого бутстрапа и убрать его только после того, как кластер поднимется и `preparedDatabases`/pg_partman синхронизируются — то есть повторить путь этого раздела заново, а не сразу использовать `values-step6-partman.yaml` как есть. Именно поэтому `charts/postgres-cluster/values-production.yaml` (используется в [postgres-full-stack-from-scratch.md](postgres-full-stack-from-scratch.md) для развёртывания сразу с нуля) — намеренно **другой** файл, где `pg_cron` в списке остаётся.
 
 Итоговый список на этом стенде: `bg_mon, pg_stat_statements, pgextwlist, pg_auth_mon, set_user, pg_stat_kcache, pg_partman_bgw` — библиотеки, для которых либо есть реально созданное расширение с данными (`pg_stat_statements`, `pg_stat_kcache`, `set_user`, `pg_auth_mon`), либо активная конфигурация без отдельного extension-объекта (`bg_mon` — HTTP-статус на 8080, используется встроенным `/scripts/renice.sh`; `pgextwlist` — реально настроенный `extwlist.extensions`), плюс новый `pg_partman_bgw`.
 

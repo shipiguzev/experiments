@@ -1,8 +1,9 @@
+{{- if .Values.imageRenderer.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana-image-renderer
-  namespace: monitoring
+  namespace: {{ .Values.namespace }}
   labels:
     app: grafana-image-renderer
 spec:
@@ -17,9 +18,9 @@ spec:
     spec:
       containers:
         - name: grafana-image-renderer
-          image: grafana/grafana-image-renderer:3.12.4
+          image: {{ .Values.imageRenderer.image }}
           ports:
-            - containerPort: 8081
+            - containerPort: {{ .Values.imageRenderer.port }}
           env:
             - name: ENABLE_METRICS
               value: "false"
@@ -28,12 +29,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana-image-renderer
-  namespace: monitoring
+  namespace: {{ .Values.namespace }}
   labels:
     app: grafana-image-renderer
 spec:
   selector:
     app: grafana-image-renderer
   ports:
-    - port: 8081
-      targetPort: 8081
+    - port: {{ .Values.imageRenderer.port }}
+      targetPort: {{ .Values.imageRenderer.port }}
+{{- end }}

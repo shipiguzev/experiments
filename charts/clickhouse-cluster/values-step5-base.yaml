@@ -1,0 +1,9 @@
+# State reached by the end of docs/clickhouse-monitoring-stack-on-kind.md: no backup user,
+# no PVC, no clickhouse-backup sidecar — plain single-container pod (operator default template).
+#   helm install chi-test ./clickhouse-cluster --namespace clickhouse --create-namespace \
+#     -f charts/clickhouse-cluster/values-step5-base.yaml
+# docs/clickhouse-backup-setup.md (Step 9 in the README ordering) removes this override —
+# reinstall without -f (or with backup.enabled: true) to reach the final/production state
+# in values.yaml.
+backup:
+  enabled: false

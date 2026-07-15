@@ -1,0 +1,5 @@
+apiVersion: v2
+name: postgres-cluster
+description: Zalando postgresql CR (Spilo cluster) + monitoring glue, replacing postgres/installations/*
+type: application
+version: 0.1.0

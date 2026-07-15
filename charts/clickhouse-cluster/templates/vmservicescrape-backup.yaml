@@ -1,0 +1,16 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ .Values.chiName }}-backup
+  namespace: {{ .Values.monitoring.namespace }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+  selector:
+    matchLabels:
+      clickhouse.altinity.com/chi: {{ .Values.chiName }}
+  endpoints:
+    - port: backup-api
+      path: /metrics
+      interval: {{ .Values.monitoring.scrapeInterval }}

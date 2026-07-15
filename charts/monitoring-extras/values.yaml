@@ -1,0 +1,26 @@
+namespace: monitoring
+
+# All dashboards land in the "Databases" folder — requires sidecar.dashboards.folderAnnotation
+# and provider.foldersFromFilesStructure: true in monitoring/vm-values.yaml (already set there).
+dashboardFolder: Databases
+
+clickhouseClusters:
+  - name: chi-test
+    url: http://clickhouse-chi-test.clickhouse.svc.cluster.local:8123
+    username: monitoring
+    password: monitoring
+  - name: chi-test-2
+    url: http://clickhouse-chi-test-2.clickhouse-2.svc.cluster.local:8123
+    username: monitoring
+    password: monitoring
+
+imageRenderer:
+  # Optional (docs/grafana-image-renderer-setup.md) — off by default, turn on with
+  # --set imageRenderer.enabled=true (or a values override) once you reach that doc.
+  enabled: false
+  image: grafana/grafana-image-renderer:3.12.4
+  port: 8081
+
+# clickhouse-operator's own /metrics scrape (was monitoring/../vmservicescrape-clickhouse-operator.yaml).
+clickhouseOperator:
+  namespace: clickhouse-operator

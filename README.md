@@ -2,7 +2,7 @@
 
 Песочница для локального Kubernetes (kind): PostgreSQL (Zalando `postgres-operator`) и ClickHouse (Altinity `clickhouse-operator`) под мониторингом VictoriaMetrics + Grafana, с бэкапами через WAL-G и отработкой major version upgrade PostgreSQL 14 → 18.
 
-Все манифесты и values-файлы, использованные в инструкциях ниже, лежат прямо в этом репозитории — доки не абстрактные, а описывают именно то, что здесь развёрнуто.
+Все манифесты, values-файлы и Helm-чарты, использованные в инструкциях ниже, лежат прямо в этом репозитории — доки не абстрактные, а описывают именно то, что здесь развёрнуто. Операторы и стек мониторинга ставятся через публичные Helm-чарты с values-файлами из репозитория; кластеры (CR `postgresql`/`ClickHouseInstallation`) и обвязка мониторинга вокруг них — через собственные чарты из `charts/`.
 
 ## Структура репозитория
 
@@ -11,36 +11,28 @@ experiments/
 ├── cluster/
 │   └── kind-config.yaml                       # конфиг kind-кластера (1 control-plane + 3 worker)
 ├── monitoring/
-│   ├── vm-values.yaml                         # values для victoria-metrics-k8s-stack
-│   ├── grafana-image-renderer.yaml            # опциональный сервис рендеринга скриншотов дашбордов
-│   ├── clickhouse-datasource-cm.yaml          # ClickHouse datasource для Grafana
-│   └── dashboards/
-│       ├── postgresql-cluster-overview.json
-│       ├── postgresql-walg.json
-│       ├── altinity-clickhouse-operator-dashboard.json
-│       ├── altinity-clickhouse-queries-dashboard.json
-│       └── clickhouse-backup-dashboard.json   # метрики sidecar'а clickhouse-backup
+│   └── vm-values.yaml                         # values для victoria-metrics-k8s-stack
 ├── postgres/
-│   ├── operator/
-│   │   ├── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)
-│   │   └── postgres-pod-config.yaml           # общий ConfigMap параметров WAL-G
-│   └── installations/
-│       ├── postgres-cluster.yaml              # CR postgresql (3 инстанса)
-│       └── monitoring/
-│           ├── postgres-metrics-svc.yaml
-│           └── vmservicescrape-postgres.yaml
+│   └── operator/
+│       └── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)
 ├── clickhouse/
-│   ├── operator/
-│   │   └── clickhouse-operator-values.yaml
-│   └── installations/
-│       ├── chi-test.yaml                      # CR ClickHouseInstallation (1 шард, 2 реплики) + clickhouse-backup sidecar
-│       ├── chi-test-2.yaml                    # второй кластер в отдельном namespace (clickhouse-2), тот же backup sidecar
-│       └── monitoring/
-│           ├── vmservicescrape-clickhouse-operator.yaml
-│           ├── chi-test-backup-metrics-svc.yaml       # Service на порт 7171 (clickhouse-backup)
-│           ├── vmservicescrape-chi-test-backup.yaml
-│           ├── chi-test-2-backup-metrics-svc.yaml
-│           └── vmservicescrape-chi-test-2-backup.yaml
+│   └── operator/
+│       └── clickhouse-operator-values.yaml
+├── charts/
+│   ├── postgres-cluster/                      # CR postgresql (3 инстанса) + monitoring-обвязка
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
+│   │   └── templates/
+│   ├── clickhouse-cluster/                    # CR ClickHouseInstallation + clickhouse-backup sidecar
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml                        # дефолты = chi-test
+│   │   ├── values-test2.yaml                  # оверрайд для второго кластера (namespace clickhouse-2)
+│   │   └── templates/
+│   └── monitoring-extras/                     # ClickHouse datasource, дашборды Grafana, grafana-image-renderer
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       ├── dashboards/                        # *.json дашбордов Grafana
+│       └── templates/
 └── docs/                                      # пошаговые инструкции (см. ниже)
 ```
 

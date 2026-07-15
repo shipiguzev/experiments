@@ -1,8 +1,8 @@
 apiVersion: "clickhouse.altinity.com/v1"
 kind: ClickHouseInstallation
 metadata:
-  name: chi-test
-  namespace: clickhouse
+  name: {{ .Values.chiName }}
+  namespace: {{ .Values.namespace }}
 spec:
   configuration:
     profiles:
@@ -11,20 +11,23 @@ spec:
       # readonly=2 still forbids INSERT/ALTER/DDL, but allows settings overrides.
       readonly/readonly: 2
     users:
-      monitoring/password: "monitoring"
+      monitoring/password: {{ .Values.users.monitoring.password | quote }}
       monitoring/networks/ip:
         - "::/0"
       monitoring/profile: readonly
+      {{- if .Values.backup.enabled }}
       # Dedicated user for clickhouse-backup — needs ALTER (for FREEZE) and system table
       # access, so it uses the unrestricted "default" profile, not "readonly". Restricted to
       # localhost since the clickhouse-backup sidecar shares the pod's network namespace.
-      backup/password: "backup"
+      backup/password: {{ .Values.users.backup.password | quote }}
       backup/networks/ip:
         - "127.0.0.1"
         - "::1"
       backup/profile: default
+      {{- end }}
     clusters:
-      - name: "test"
+      - name: {{ .Values.clusterName | quote }}
+        {{- if .Values.backup.enabled }}
         templates:
           podTemplate: pod-template-with-backup
           # Deliberately NOT mounted via containers[].volumeMounts below: the operator's
@@ -34,39 +37,32 @@ spec:
           # dropped before the StatefulSet is even created — confirmed against operator 0.27.1
           # source (pkg/model/chi/volume/volume.go) and the live StatefulSet spec.
           dataVolumeClaimTemplate: clickhouse-data
+        {{- end }}
         layout:
-          shardsCount: 1
-          replicasCount: 2
+          shardsCount: {{ .Values.shardsCount }}
+          replicasCount: {{ .Values.replicasCount }}
+  {{- if .Values.backup.enabled }}
   templates:
     podTemplates:
       - name: pod-template-with-backup
         spec:
           containers:
             - name: clickhouse
-              image: clickhouse/clickhouse-server:latest
+              image: {{ .Values.image }}
             - name: clickhouse-backup
-              image: altinity/clickhouse-backup:stable
+              image: {{ .Values.backup.image }}
               command:
                 - clickhouse-backup
               args:
                 - server
                 - --watch
-                # altinity/clickhouse-backup:stable doesn't support --schedule (cron) yet,
-                # only interval-based --watch. full-interval must be strictly greater than
-                # watch-interval (equal values are rejected at startup) — incremental backup
-                # every 12h, promoted to a full backup once every 24h.
-                - --watch-interval=12h
-                - --full-interval=24h
+                - --watch-interval={{ .Values.backup.watchInterval }}
+                - --full-interval={{ .Values.backup.fullInterval }}
               ports:
                 - name: backup-api
                   containerPort: 7171
               resources:
-                requests:
-                  cpu: 50m
-                  memory: 128Mi
-                limits:
-                  cpu: 250m
-                  memory: 512Mi
+                {{- toYaml .Values.backup.resources | nindent 16 }}
               env:
                 - name: POD_NAME
                   valueFrom:
@@ -81,24 +77,19 @@ spec:
                 - name: REMOTE_STORAGE
                   value: "s3"
                 - name: S3_ENDPOINT
-                  value: "http://minio.minio.svc.cluster.local:9000"
+                  value: {{ .Values.backup.s3.endpoint | quote }}
                 - name: S3_BUCKET
-                  value: "clickhouse-backups"
-                # Each replica has its own independent (non-ZK-replicated) data — see
-                # "Несколько кластеров"/readonly note above — so every pod must back up to
-                # its own S3 prefix, not a shared one, otherwise replicas would overwrite
-                # each other's backups. $(POD_NAME) is unique per pod (chi-chi-test-test-0-0-0,
-                # chi-chi-test-test-0-1-0, ...).
+                  value: {{ .Values.backup.s3.bucket | quote }}
                 - name: S3_PATH
-                  value: "chi-test/$(POD_NAME)"
+                  value: "{{ .Values.backup.s3.pathPrefix }}/$(POD_NAME)"
                 - name: S3_REGION
-                  value: "us-east-1"
+                  value: {{ .Values.backup.s3.region | quote }}
                 - name: S3_FORCE_PATH_STYLE
                   value: "true"
                 - name: S3_DISABLE_SSL
                   value: "true"
                 - name: BACKUPS_TO_KEEP_REMOTE
-                  value: "7"
+                  value: {{ .Values.backup.keepRemote | quote }}
                 # Without this, "no tables for backup" (e.g. right after a fresh bootstrap,
                 # before any table has data) is treated as a fatal error that aborts the
                 # whole --watch loop for good — not just skips one cycle.
@@ -110,7 +101,7 @@ spec:
                   value: "true"
               envFrom:
                 - secretRef:
-                    name: clickhouse-backup-s3
+                    name: {{ .Values.backup.s3.secretName }}
     volumeClaimTemplates:
       - name: clickhouse-data
         spec:
@@ -118,5 +109,5 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 2Gi
-
+              storage: {{ .Values.storage }}
+  {{- end }}

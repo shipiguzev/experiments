@@ -74,26 +74,23 @@ kubectl get crd postgresqls.acid.zalan.do \
 
 > **Важно (грабли): патч CRD нужно переприменять не только после `helm upgrade`, а после КАЖДОГО (пере)старта пода оператора.** Сам оператор при старте выполняет `ensureCRDs` — ресинхронизирует CRD под свою прошитую (собранную в бинарник) схему, которая поддерживает только до версии 17, и тем самым откатывает наш патч. Это происходит не только на `helm upgrade`, но и на любом рестарте деплоймента `postgres-operator` — в том числе на приёме форсированного ресинка `kubectl rollout restart deployment postgres-operator`, который сами эти доки рекомендуют в нескольких местах ([`postgres-walg-backup-setup.md`](postgres-walg-backup-setup.md), раздел 6; troubleshooting `CreateFailed` в [`postgres-cluster-deployment-with-monitoring.md`](postgres-cluster-deployment-with-monitoring.md)). После любого такого рестарта проверяйте enum командой выше и при необходимости переприменяйте патч заново — иначе следующий `kubectl apply` манифеста с `version: "18"` упадёт с `Unsupported value: "18": supported values: "13","14","15","16","17"`.
 
-## Шаг 3. Обновить версию в манифесте кластера
+## Шаг 3. Обновить версию в values чарта
 
-Измените `postgresql.version` с `"14"` на `"18"` в `postgres/installations/postgres-cluster.yaml`:
+Измените `postgresql.version` с `"14"` на `"18"` — это уже собрано отдельным overlay-файлом `charts/postgres-cluster/values-step4-v18.yaml`:
 
 ```yaml
-apiVersion: "acid.zalan.do/v1"
-kind: postgresql
-metadata:
-  name: postgres-cluster
-  namespace: postgres
-spec:
-  postgresql:
-    version: "18"   # было "14"
-  ...
+postgresql:
+  version: "18"   # было "14"
 ```
 
-Примените манифест:
+Примените — не забывая про `values-step3-walg.yaml` из предыдущего дока (`helm upgrade` не запоминает `-f` из прошлых вызовов):
 
 ```bash
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml \
+  --values charts/postgres-cluster/values-step3-walg.yaml \
+  --values charts/postgres-cluster/values-step4-v18.yaml
 kubectl get postgresql -n postgres -w
 # NAME               TEAM   VERSION   STATUS
 # postgres-cluster   test   18        Updating

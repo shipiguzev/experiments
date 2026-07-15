@@ -1,0 +1,5 @@
+apiVersion: v2
+name: clickhouse-cluster
+description: ClickHouseInstallation CR + clickhouse-backup sidecar + monitoring glue, replacing clickhouse/installations/chi-test*.yaml
+type: application
+version: 0.1.0

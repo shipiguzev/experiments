@@ -1,0 +1,7 @@
+# docs/postgres-major-version-upgrade-14-to-18.md — bump postgresql.version.
+# Layer on top of the previous step:
+#   helm upgrade postgres-cluster ./charts/postgres-cluster --namespace postgres \
+#     -f charts/postgres-cluster/values-step3-walg.yaml \
+#     -f charts/postgres-cluster/values-step4-v18.yaml
+postgresql:
+  version: "18"

@@ -14,14 +14,14 @@
 
 ```
 experiments/
-└── postgres/
-    ├── operator/
-    │   └── postgres-operator-values.yaml
-    └── installations/
-        ├── postgres-cluster.yaml
-        └── monitoring/
-            ├── postgres-metrics-svc.yaml
-            └── vmservicescrape-postgres.yaml
+├── postgres/
+│   └── operator/
+│       └── postgres-operator-values.yaml
+└── charts/
+    ├── postgres-cluster/               # CR postgresql + Service + VMServiceScrape одним релизом
+    │   ├── values.yaml                 # база: то самое состояние, которое соберём в этом доке
+    │   └── values-step3-walg.yaml      # ...values-step7-*.yaml — накладываются в следующих доках
+    └── monitoring-extras/              # дашборды Grafana (ConfigMap с grafana_dashboard=1)
 ```
 
 ## Шаг 1. Подготовка образа
@@ -36,7 +36,6 @@ Zalando postgres-operator управляет жизненным циклом Pos
 
 ```bash
 mkdir -p postgres/operator
-mkdir -p postgres/installations/monitoring
 ```
 
 ```yaml
@@ -85,8 +84,11 @@ kubectl get pods -n postgres-operator
 - `socket-directory` — shared volume для Unix socket между postgres и экспортером. Монтируется во все контейнеры пода (`targetContainers: all`)
 - `postgres-exporter-custom-queries` — опциональный ConfigMap с кастомными SQL запросами для экспортера. Помечен `optional: true` — экспортер запустится без него используя стандартные метрики
 
+Всё это уже собрано в `charts/postgres-cluster/values.yaml` — это база чарта `postgres-cluster`, который одним релизом разворачивает сразу три объекта: сам CR `postgresql`, headless Service и VMServiceScrape (про них — Шаг 4). В следующих доках этой цепочки (WAL-G, major upgrade, pg_partman, walg-exporter) поверх этой базы через дополнительные `-f values-step*.yaml` накладываются новые поля — история изменений останется видна по файлам, а не только по тексту доков.
+
+Ниже — эквивалент того, что реально уходит оператору (шаблон `charts/postgres-cluster/templates/postgresql.yaml` + текущий `values.yaml`):
+
 ```yaml
-# postgres/installations/postgres-cluster.yaml
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
@@ -148,11 +150,12 @@ spec:
           optional: true
 ```
 
-Примените манифест:
+Установите чарт — он же сразу создаёт Service и VMServiceScrape из Шага 4 ниже, отдельно применять их не нужно:
 
 ```bash
-kubectl create namespace postgres
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade --install postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres --create-namespace \
+  --values charts/postgres-cluster/values.yaml
 kubectl get postgresql -n postgres -w
 ```
 
@@ -172,7 +175,7 @@ kubectl get pods -n postgres
 
 ### Service для метрик
 
-Оператор создаёт сервисы только для PostgreSQL (порт 5432). Для сбора метрик нужен отдельный Headless Service который откроет порты экспортера и Patroni.
+Оператор создаёт сервисы только для PostgreSQL (порт 5432). Для сбора метрик нужен отдельный Headless Service который откроет порты экспортера и Patroni. `helm upgrade --install` из Шага 3 уже создал его вместе с CR — ничего дополнительно применять не нужно, ниже разбор того, что уже развёрнуто (`charts/postgres-cluster/templates/service-metrics.yaml`).
 
 Порты:
 
@@ -182,7 +185,6 @@ kubectl get pods -n postgres
 Headless Service (`clusterIP: None`) создаёт DNS записи для каждого пода отдельно, что позволяет VMAgent собирать метрики с каждого инстанса независимо.
 
 ```yaml
-# postgres/installations/monitoring/postgres-metrics-svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -207,10 +209,9 @@ spec:
 
 ### VMServiceScrape
 
-VMServiceScrape указывает VMAgent собирать метрики с созданного сервиса. Селектор по лейблам `application: spilo` и `cluster-name: postgres-cluster` позволяет точно таргетировать нужный кластер — удобно когда в namespace несколько кластеров.
+VMServiceScrape указывает VMAgent собирать метрики с созданного сервиса. Селектор по лейблам `application: spilo` и `cluster-name: postgres-cluster` позволяет точно таргетировать нужный кластер — удобно когда в namespace несколько кластеров. Тоже уже развёрнут тем же релизом (`charts/postgres-cluster/templates/vmservicescrape.yaml`):
 
 ```yaml
-# postgres/installations/monitoring/vmservicescrape-postgres.yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
 metadata:
@@ -232,28 +233,24 @@ spec:
       path: /metrics
 ```
 
-Примените манифесты:
+Проверьте, что он подхватился:
 
 ```bash
-kubectl apply -f postgres/installations/monitoring/postgres-metrics-svc.yaml
-kubectl apply -f postgres/installations/monitoring/vmservicescrape-postgres.yaml
 kubectl get vmservicescrape -n monitoring postgres-cluster
 # STATUS должен быть operational
 ```
 
 ## Шаг 5. Деплой дашборда
 
-Дашборд деплоится через ConfigMap с лейблом `grafana_dashboard=1` — Grafana sidecar подхватывает его автоматически. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`).
+Дашборд деплоится через ConfigMap с лейблом `grafana_dashboard=1` — Grafana sidecar подхватывает его автоматически. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`). Чарт `monitoring-extras` генерирует такой ConfigMap автоматически для каждого файла из `charts/monitoring-extras/dashboards/*.json` (шаблон `templates/dashboards-cm.yaml`, `range` по `Files.Glob`) — вручную собирать `kubectl create configmap | label | annotate` не нужно:
 
 ```bash
-kubectl create configmap postgresql-cluster-overview-dashboard \
-  --from-file=monitoring/dashboards/postgresql-cluster-overview.json \
+helm upgrade --install monitoring-extras ./charts/monitoring-extras \
   --namespace monitoring \
-  --dry-run=client -o yaml | \
-kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
-kubectl apply -f -
+  --values charts/monitoring-extras/values.yaml
 ```
+
+Этот же релиз сразу поднимает и остальные дашборды из `charts/monitoring-extras/dashboards/` — на этом шаге актуален только `postgresql-cluster-overview.json`, остальные (ClickHouse, WAL-G, backup) до соответствующих доков будут просто показывать «No data», это ожидаемо.
 
 Дашборд появится в Grafana через 15-20 секунд.
 
@@ -265,8 +262,9 @@ kubectl apply -f -
 
 Список расширений, реально установленных в каждой базе, — не то, что видно из манифеста кластера (`preparedDatabases.extensions` описывает только то, что поставил оператор при бутстрапе; расширения, добавленные вручную или другим способом, туда не попадают). Чтобы видеть актуальную картину в Grafana, используем уже подключённый, но неиспользуемый механизм `postgres-exporter-custom-queries` (см. Шаг 3) — добавляем туда SQL-запрос к `pg_extension`.
 
+Уже присутствует в чарте как `charts/postgres-cluster/templates/configmap-exporter-queries.yaml` (рендерится всегда, независимо от values-шагов):
+
 ```yaml
-# postgres/installations/monitoring/postgres-exporter-queries-cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -302,23 +300,23 @@ data:
 
 Метрика получает имя `pg_extension_installed` — `<ключ верхнего уровня>_<имя колонки>` — это соглашение имён у `postgres_exporter`, а не что-то заданное явно.
 
-По умолчанию `DATA_SOURCE_NAME` экспортера (Шаг 3) не указывает `dbname` и коннектится только к одной базе (фактически `postgres`) — расширения из `app` (в т.ч. `pg_partman`) в метрики бы не попали. Включаем обход всех баз кластера:
+По умолчанию `DATA_SOURCE_NAME` экспортера (Шаг 3) не указывает `dbname` и коннектится только к одной базе (фактически `postgres`) — расширения из `app` (в т.ч. `pg_partman`) в метрики бы не попали. В шаблоне `postgresql.yaml` sidecar `prometheus-postgres-exporter` уже включает обход всех баз кластера безусловно (не вынесено в values, т.к. в этом стенде это не варьируется):
 
 ```yaml
-# postgres/installations/postgres-cluster.yaml, sidecars[0].env
 - name: PG_EXPORTER_AUTO_DISCOVER_DATABASES
   value: "true"
 ```
 
 > **Важно (компромисс):** `auto_discover_databases` заставляет экспортёр опрашивать *все* базы кластера этим же набором запросов, включая уже встроенные коллекторы (`pg_stat_statements`, `pg_locks` и т.д.) — не только наш кастомный запрос по extensions. Это увеличивает кардинальность вообще всех метрик экспортёра (каждая теперь размножается по числу баз), а не только целевой. Альтернатива — зафиксировать `dbname=app` в `DATA_SOURCE_NAME` без auto-discover: проще и без роста кардинальности, но тогда не видно расширений, установленных в системных базах (`postgres`, `template1`).
 
-Примените ConfigMap (до пересоздания пода — он смонтирован как volume) и манифест кластера:
+ConfigMap с запросом (`configmap-exporter-queries.yaml`) уже был установлен вместе с чартом на Шаге 3 — эта же команда `helm upgrade` его переприменит, если вы меняли `values.yaml`:
 
 ```bash
-kubectl apply -f postgres/installations/monitoring/postgres-exporter-queries-cm.yaml
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml
 kubectl get postgresql -n postgres -w
-# STATUS: Updating -> Running (rolling restart всех подов из-за смены sidecar env)
+# STATUS: Updating -> Running (rolling restart всех подов из-за смены sidecar env, если values менялись)
 ```
 
 Проверьте метрику:
@@ -341,7 +339,7 @@ kubectl exec -n postgres postgres-cluster-0 -c postgres -- curl -s http://localh
 >
 > После рестарта экспортёр читает уже присутствующий на диске файл при старте процесса (обычный путь загрузки конфига, а не fsnotify) — гонка тут не участвует.
 
-В дашборд `monitoring/dashboards/postgresql-cluster-overview.json` добавлена таблица «Installed Extensions» (панель `Extensions`) с запросом:
+В дашборд `charts/monitoring-extras/dashboards/postgresql-cluster-overview.json` добавлена таблица «Installed Extensions» (панель `Extensions`) с запросом:
 
 ```promql
 group by (datname, schemaname, extname, extversion) (pg_extension_installed{namespace=~"$namespace"})

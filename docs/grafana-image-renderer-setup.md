@@ -8,9 +8,11 @@
 
 ```
 experiments/
-└── monitoring/
-    ├── vm-values.yaml                  # + GF_RENDERING_SERVER_URL/GF_RENDERING_CALLBACK_URL
-    └── grafana-image-renderer.yaml
+├── monitoring/
+│   └── vm-values.yaml                  # + GF_RENDERING_SERVER_URL/GF_RENDERING_CALLBACK_URL
+└── charts/
+    └── monitoring-extras/
+        └── templates/grafana-image-renderer.yaml   # imageRenderer.enabled: false по умолчанию
 ```
 
 ## Почему отдельным сервисом, а не плагином
@@ -21,51 +23,13 @@ experiments/
 
 ## Шаг 1. Деплой сервиса рендерера
 
-```yaml
-# monitoring/grafana-image-renderer.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: grafana-image-renderer
-  namespace: monitoring
-  labels:
-    app: grafana-image-renderer
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: grafana-image-renderer
-  template:
-    metadata:
-      labels:
-        app: grafana-image-renderer
-    spec:
-      containers:
-        - name: grafana-image-renderer
-          image: grafana/grafana-image-renderer:3.12.4
-          ports:
-            - containerPort: 8081
-          env:
-            - name: ENABLE_METRICS
-              value: "false"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana-image-renderer
-  namespace: monitoring
-  labels:
-    app: grafana-image-renderer
-spec:
-  selector:
-    app: grafana-image-renderer
-  ports:
-    - port: 8081
-      targetPort: 8081
-```
+Deployment+Service уже есть в чарте `monitoring-extras` (`templates/grafana-image-renderer.yaml`), но по умолчанию выключены (`imageRenderer.enabled: false`) — это единственный опциональный кусок чарта, включается явным флагом:
 
 ```bash
-kubectl apply -f monitoring/grafana-image-renderer.yaml
+helm upgrade --install monitoring-extras ./charts/monitoring-extras \
+  --namespace monitoring \
+  --values charts/monitoring-extras/values.yaml \
+  --set imageRenderer.enabled=true
 kubectl rollout status deployment/grafana-image-renderer -n monitoring --timeout=180s
 ```
 

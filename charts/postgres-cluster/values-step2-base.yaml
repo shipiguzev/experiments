@@ -1,0 +1,19 @@
+# State reached by the end of docs/postgres-cluster-deployment-with-monitoring.md:
+# PostgreSQL 14, single "monitoring" owner, no WAL-G, no pg_partman, no walg-exporter sidecar.
+# Layer on top of values.yaml:
+#   helm upgrade --install postgres-cluster ./charts/postgres-cluster \
+#     --namespace postgres --create-namespace \
+#     -f charts/postgres-cluster/values.yaml -f charts/postgres-cluster/values-step2-base.yaml
+postgresql:
+  version: "14"
+  parameters: {}
+
+databases:
+  app: monitoring
+
+preparedDatabases: null
+
+sidecars:
+  walgExporter: null
+
+podConfig: {}

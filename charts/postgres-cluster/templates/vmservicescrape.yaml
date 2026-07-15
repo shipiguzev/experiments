@@ -1,0 +1,21 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Values.monitoring.namespace }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+  selector:
+    matchLabels:
+      application: spilo
+      cluster-name: {{ .Values.clusterName }}
+  endpoints:
+    - port: pg-exporter
+      interval: {{ .Values.monitoring.scrapeInterval }}
+    - port: patroni
+      interval: {{ .Values.monitoring.scrapeInterval }}
+      path: /metrics
+    - port: walg-exporter
+      interval: {{ .Values.monitoring.scrapeInterval }}

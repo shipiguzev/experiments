@@ -1,0 +1,21 @@
+# docs/postgres-walg-exporter-monitoring.md — adds the walg-exporter sidecar + shared "walg"
+# emptyDir volume (envdir files Spilo already writes for wal-g itself).
+#
+# Layer on top of all previous steps — this is the full chain that reaches the end of the
+# numbered walkthrough (compare to values-production.yaml, which differs only by keeping
+# pg_cron in shared_preload_libraries for a from-scratch bootstrap):
+#   helm upgrade postgres-cluster ./charts/postgres-cluster --namespace postgres \
+#     -f charts/postgres-cluster/values-step3-walg.yaml \
+#     -f charts/postgres-cluster/values-step4-v18.yaml \
+#     -f charts/postgres-cluster/values-step6-partman.yaml \
+#     -f charts/postgres-cluster/values-step7-walg-exporter.yaml
+sidecars:
+  walgExporter:
+    image: ghcr.io/thedatabaseme/wal-g-exporter:latest
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

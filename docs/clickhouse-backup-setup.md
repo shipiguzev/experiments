@@ -41,11 +41,12 @@ kubectl create secret generic clickhouse-backup-s3 \
 
 ## 4. Отдельный ClickHouse-пользователь для бэкапа
 
-`clickhouse-backup` делает `ALTER TABLE ... FREEZE` и читает `system.*` — нужен пользователь с непривилегированным, но не `readonly`-профилем (`readonly` в этом кластере и так уже переопределён на `2`, см. `chi-test.yaml`, но `ALTER` он всё равно не разрешает). Заводим отдельного пользователя `backup`, ограниченного localhost'ом — sidecar сидит в том же поде, что и `clickhouse-server`, поэтому подключение всегда идёт с `127.0.0.1`:
+`clickhouse-backup` делает `ALTER TABLE ... FREEZE` и читает `system.*` — нужен пользователь с непривилегированным, но не `readonly`-профилем (`readonly` в этом кластере и так уже переопределён на `2`, но `ALTER` он всё равно не разрешает). Заводим отдельного пользователя `backup`, ограниченного localhost'ом — sidecar сидит в том же поде, что и `clickhouse-server`, поэтому подключение всегда идёт с `127.0.0.1`. Это (как и весь остальной backup-функционал этого дока) уже часть чарта `clickhouse-cluster`, включается флагом `backup.enabled` (по умолчанию `true` в `values.yaml` — доку 5 пришлось явно выключать его через `values-step5-base.yaml`, здесь этот оверрайд убираем):
 
 ```yaml
-# clickhouse/installations/chi-test.yaml, spec.configuration.users
-backup/password: "backup"
+# charts/clickhouse-cluster/templates/clickhouseinstallation.yaml, spec.configuration.users
+# рендерится только если backup.enabled: true
+backup/password: {{ .Values.users.backup.password | quote }}
 backup/networks/ip:
   - "127.0.0.1"
   - "::1"
@@ -56,8 +57,9 @@ backup/profile: default
 
 До этого момента ClickHouse в этом репозитории вообще не имел персистентного хранилища (`/var/lib/clickhouse` жил в writable-слое контейнера) — с точки зрения мониторинга это было не важно, но для бэкапа это дефолт, который придётся исправить в любом случае: без реального volume `FREEZE`-снепшоты и сам бэкап-процесс работать не будут (данные и так переживали только рестарт контейнера, не пересоздание пода).
 
+Весь блок ниже (PVC + sidecar) уже в шаблоне `charts/clickhouse-cluster/templates/clickhouseinstallation.yaml`, целиком под `{{- if .Values.backup.enabled }}` — это и есть дефолтное состояние чарта (`values.yaml`), доку 5 приходилось явно отключать его через `values-step5-base.yaml`:
+
 ```yaml
-# clickhouse/installations/chi-test.yaml
 spec:
   configuration:
     clusters:
@@ -142,7 +144,7 @@ spec:
 
 Разбор нетривиальных мест:
 
-- **`S3_PATH: "chi-test/$(POD_NAME)"`** — `$(POD_NAME)` подставляется Kubernetes из переменной `POD_NAME` (Downward API, `metadata.name`), объявленной выше в том же списке `env` — тот же приём, что уже используется в `postgres-cluster.yaml` для `PG_EXPORTER_CONSTANT_LABELS`. Даёт каждому поду свой префикс (`chi-test/chi-chi-test-test-0-0-0`, `chi-test/chi-chi-test-test-0-1-0`) без хардкода конкретных имён, см. шаг 1 про независимость реплик.
+- **`S3_PATH: "chi-test/$(POD_NAME)"`** — `$(POD_NAME)` подставляется Kubernetes из переменной `POD_NAME` (Downward API, `metadata.name`), объявленной выше в том же списке `env` — тот же приём, что уже используется в `charts/postgres-cluster/templates/postgresql.yaml` для `PG_EXPORTER_CONSTANT_LABELS`. Даёт каждому поду свой префикс (`chi-test/chi-chi-test-test-0-0-0`, `chi-test/chi-chi-test-test-0-1-0`) без хардкода конкретных имён, см. шаг 1 про независимость реплик.
 - **`ALLOW_EMPTY_BACKUPS: "true"`** — без него `create_remote` при отсутствии пользовательских таблиц в базе (например, чистый `default` без единой таблицы) завершается ошибкой `no tables for backup`, которая в режиме `--watch` не просто пропускает один цикл, а **насовсем останавливает** цикл наблюдения (`abort watching`) — sidecar продолжает жить (API отвечает), но больше никогда не бэкапит, пока под не пересоздадут. С этим флагом «нечего бэкапить» — не фатальная ошибка.
 - **`--watch-interval=12h` / `--full-interval=24h`, без `--schedule`** — `altinity/clickhouse-backup:stable` (в отличие от `master`) не поддерживает флаг `--schedule` (cron-выражения) — падает при старте с `flag provided but not defined: -schedule`. Доступен только интервальный `--watch`: `full-interval` обязан быть **строго больше** `watch-interval` (иначе ошибка валидации `fullInterval should be more than watchInterval` уже на старте, не на первом цикле) — поэтому не получится просто продублировать значение, если нужен единый цикл без инкрементов. `12h`/`24h` — инкрементальный бэкап каждые 12 часов, полный раз в сутки.
 
@@ -181,8 +183,12 @@ kubectl exec -n clickhouse chi-chi-test-test-0-0-0 -c clickhouse-backup -- ls /v
 
 ## 7. Применение
 
+`backup.enabled: true` — уже дефолт чарта, так что достаточно переустановить релиз без `values-step5-base.yaml` (секрет `clickhouse-backup-s3` из шага 3 уже должен существовать в namespace `clickhouse`):
+
 ```bash
-kubectl apply -f clickhouse/installations/chi-test.yaml
+helm upgrade --install chi-test ./charts/clickhouse-cluster \
+  --namespace clickhouse \
+  --values charts/clickhouse-cluster/values.yaml
 kubectl get chi -n clickhouse chi-test -w
 ```
 
@@ -252,10 +258,9 @@ kubectl exec -n clickhouse chi-chi-test-test-0-0-0 -c clickhouse-backup -- wget 
 
 ## 9. Мониторинг в Grafana
 
-Оператор не создаёт сервис на порт `7171` (это порт нашего sidecar'а, не самого ClickHouse) — нужен отдельный headless `Service` с селектором по лейблу CHI, аналогично `postgres-metrics-svc.yaml` у Postgres:
+Оператор не создаёт сервис на порт `7171` (это порт нашего sidecar'а, не самого ClickHouse) — нужен отдельный headless `Service` с селектором по лейблу CHI, аналогично Service у Postgres. Оба объекта ниже уже в чарте `clickhouse-cluster` (`templates/service-backup-metrics.yaml`/`templates/vmservicescrape-backup.yaml`), безусловно — `helm upgrade` из Шага 7 их уже применил:
 
 ```yaml
-# clickhouse/installations/monitoring/chi-test-backup-metrics-svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -274,7 +279,6 @@ spec:
 ```
 
 ```yaml
-# clickhouse/installations/monitoring/vmservicescrape-chi-test-backup.yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
 metadata:
@@ -294,23 +298,11 @@ spec:
 ```
 
 ```bash
-kubectl apply -f clickhouse/installations/monitoring/chi-test-backup-metrics-svc.yaml
-kubectl apply -f clickhouse/installations/monitoring/vmservicescrape-chi-test-backup.yaml
 kubectl get vmservicescrape -n monitoring chi-test-backup
 # STATUS: operational
 ```
 
-Готового дашборда для `clickhouse-backup` в апстриме нет (в отличие от `wal-g-exporter` у Postgres) — собран с нуля, `monitoring/dashboards/clickhouse-backup-dashboard.json`, деплоится так же, как остальные дашборды:
-
-```bash
-kubectl create configmap clickhouse-backup-dashboard \
-  --from-file=monitoring/dashboards/clickhouse-backup-dashboard.json \
-  --namespace monitoring \
-  --dry-run=client -o yaml | \
-kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
-kubectl apply -f -
-```
+Готового дашборда для `clickhouse-backup` в апстриме нет (в отличие от `wal-g-exporter` у Postgres) — собран с нуля, `charts/monitoring-extras/dashboards/clickhouse-backup-dashboard.json`, деплоится так же, как остальные дашборды (см. [postgres-cluster-deployment-with-monitoring.md, Шаг 5](postgres-cluster-deployment-with-monitoring.md#шаг-5-деплой-дашборда)) — если релиз `monitoring-extras` уже установлен, дашборд в нём уже есть.
 
 ![ClickHouse Backup Dashboard](images/clickhouse-backup-dashboard.png)
 
@@ -328,7 +320,7 @@ kubectl exec -n clickhouse chi-chi-test-test-0-0-0 -c clickhouse-backup -- click
 
 ## 11. Второй кластер (`chi-test-2`) — проверка на нескольких кластерах
 
-Тот же набор шагов (2–7, 9) применён к `chi-test-2` (namespace `clickhouse-2`) один в один — секрет, пользователь `backup`, `podTemplate`/`dataVolumeClaimTemplate`, `Service`+`VMServiceScrape` под тем же именем-паттерном:
+Тот же набор шагов (2–7, 9) применён к `chi-test-2` (namespace `clickhouse-2`) один в один — секрет, пользователь `backup`, `podTemplate`/`dataVolumeClaimTemplate`, `Service`+`VMServiceScrape` под тем же именем-паттерном. Это второй **релиз** того же чарта `clickhouse-cluster`, с оверрайдом `charts/clickhouse-cluster/values-test2.yaml` (см. [clickhouse-monitoring-stack-on-kind.md](clickhouse-monitoring-stack-on-kind.md#несколько-кластеров-в-разных-namespace)):
 
 ```bash
 kubectl create secret generic clickhouse-backup-s3 \
@@ -337,12 +329,13 @@ kubectl create secret generic clickhouse-backup-s3 \
   --from-literal=S3_SECRET_KEY=minioadmin \
   --from-literal=CLICKHOUSE_PASSWORD=backup
 
-kubectl apply -f clickhouse/installations/chi-test-2.yaml
-kubectl apply -f clickhouse/installations/monitoring/chi-test-2-backup-metrics-svc.yaml
-kubectl apply -f clickhouse/installations/monitoring/vmservicescrape-chi-test-2-backup.yaml
+helm upgrade --install chi-test-2 ./charts/clickhouse-cluster \
+  --namespace clickhouse-2 \
+  --values charts/clickhouse-cluster/values.yaml \
+  --values charts/clickhouse-cluster/values-test2.yaml
 ```
 
-Единственное отличие в манифесте `chi-test-2.yaml` — `S3_PATH: "chi-test-2/$(POD_NAME)"` (бакет `clickhouse-backups` общий на оба кластера, разделены префиксом), остальное идентично `chi-test.yaml`.
+Единственное отличие в values — `backup.s3.pathPrefix: chi-test-2` (бакет `clickhouse-backups` общий на оба кластера, разделены префиксом), уже в `values-test2.yaml`; остальное наследуется из `values.yaml`.
 
 Правил по факту править не пришлось — все грабли из разделов 1–8 (в первую очередь `dataVolumeClaimTemplate` вместо ручного `volumeMounts`) уже были учтены в манифесте с первого раза. Проверка после применения:
 

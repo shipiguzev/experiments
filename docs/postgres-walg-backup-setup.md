@@ -85,15 +85,10 @@ kubectl create secret generic walg-config \
 
 ## 4. ConfigMap с общими параметрами WAL-G
 
-Конфигмап с параметрами, одинаковыми для всех кластеров под управлением оператора. Живёт в namespace `postgres-operator` (путь указывается в конфиге оператора, см. шаг 5).
+Конфигмап с параметрами, одинаковыми для всех кластеров под управлением оператора. Живёт в namespace `postgres-operator` (путь указывается в конфиге оператора, см. шаг 5). Рендерится чартом `postgres-cluster` (`templates/configmap-pod-config.yaml`, namespace берётся из `values.operatorNamespace`) — значения ниже уже собраны в `charts/postgres-cluster/values-step3-walg.yaml`:
 
 ```yaml
-# postgres-pod-config.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-pod-config
-data:
+podConfig:
   USE_WALG_BACKUP: "true"
   USE_WALG_RESTORE: "true"
   CLONE_USE_WALG_RESTORE: "true"
@@ -102,9 +97,16 @@ data:
   BACKUP_NUM_TO_RETAIN: "7"        # сколько последних бэкапов хранить
 ```
 
+Накатите этот values-файл поверх уже установленного релиза (сам CR `postgresql` этот шаг не меняет — WAL-G на этом этапе включается только конфигом, см. шаг 5):
+
 ```bash
-kubectl apply -f postgres-pod-config.yaml -n postgres-operator
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml \
+  --values charts/postgres-cluster/values-step3-walg.yaml
 ```
+
+> **Важно:** `helm upgrade` не запоминает `-f`, переданные в предыдущих вызовах — на каждом следующем шаге этой цепочки доков нужно перечислять все `values-step*.yaml` с начала, а не только новый файл (иначе непереданные значения из более ранних шагов откатятся на дефолты чарта). Дальше по докам список файлов будет только расти.
 
 ## 5. Включение S3/WAL-G в конфиге оператора
 

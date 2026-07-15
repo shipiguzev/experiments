@@ -18,90 +18,84 @@
 
 > **Важно (грабли): образ в README апстрима указан неверно.** Там фигурирует `ghcr.io/thedatabaseme/wal-g-prometheus-exporter:latest` — этого образа не существует (`ghcr.io` отвечает `403 DENIED` на попытку получить токен, то есть пакета с таким именем просто нет). Реальное имя образа, которое публикует CI проекта (`.github/workflows/build.yml`, `docker/metadata-action` → `images: ghcr.io/thedatabaseme/wal-g-exporter`) — **`ghcr.io/thedatabaseme/wal-g-exporter:latest`**.
 
-## 2. Sidecar в манифесте кластера
+## 2. Sidecar в values чарта
 
-В `postgres/installations/postgres-cluster.yaml` добавлен sidecar `walg-exporter`:
+`charts/postgres-cluster/values-step7-walg-exporter.yaml` добавляет sidecar `walg-exporter` (шаблон `templates/postgresql.yaml` рендерит его условно — только если `sidecars.walgExporter` задан в values, см. `{{- if .Values.sidecars.walgExporter }}`):
 
 ```yaml
-spec:
-  sidecars:
-    - name: walg-exporter
-      image: ghcr.io/thedatabaseme/wal-g-exporter:latest
-      ports:
-        - name: walg-exporter
-          containerPort: 9351
-          protocol: TCP
-      resources:
-        requests:
-          cpu: 10m
-          memory: 32Mi
-        limits:
-          cpu: 100m
-          memory: 128Mi
-      env:
-        - name: PGHOST
-          value: /var/run/postgresql
-        - name: PGUSER
-          value: postgres
-  additionalVolumes:
-    - name: walg
-      mountPath: /run/etc
-      targetContainers:
-        - postgres
-        - walg-exporter
-      volumeSource:
-        emptyDir: {}
+sidecars:
+  walgExporter:
+    image: ghcr.io/thedatabaseme/wal-g-exporter:latest
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+```
+
+Эквивалент того, что в итоге уходит оператору (sidecar-контейнер + общий с `postgres` volume `walg`):
+
+```yaml
+sidecars:
+  - name: walg-exporter
+    image: ghcr.io/thedatabaseme/wal-g-exporter:latest
+    ports:
+      - name: walg-exporter
+        containerPort: 9351
+        protocol: TCP
+    env:
+      - name: PGHOST
+        value: /var/run/postgresql
+      - name: PGUSER
+        value: postgres
+additionalVolumes:
+  - name: walg
+    mountPath: /run/etc
+    targetContainers:
+      - postgres
+      - walg-exporter
+    volumeSource:
+      emptyDir: {}
 ```
 
 `PGSSLMODE` не переопределяется — для unix-socket подключений SSL/`sslmode` игнорируется PostgreSQL в принципе, ошибки не возникает даже с дефолтным `require`.
 
-Применяем:
+Применяем — это последний файл в цепочке `values-step*.yaml`, перечисляем все:
 
 ```bash
-kubectl apply -f postgres/installations/postgres-cluster.yaml
+helm upgrade postgres-cluster ./charts/postgres-cluster \
+  --namespace postgres \
+  --values charts/postgres-cluster/values.yaml \
+  --values charts/postgres-cluster/values-step3-walg.yaml \
+  --values charts/postgres-cluster/values-step4-v18.yaml \
+  --values charts/postgres-cluster/values-step6-partman.yaml \
+  --values charts/postgres-cluster/values-step7-walg-exporter.yaml
 ```
 
 Оператор обновит StatefulSet и последовательно пересоздаст поды кластера с новым sidecar-контейнером (`3/3 Running`).
 
 ## 3. Service и VMServiceScrape
 
-Порт `9351` добавлен в headless Service и как endpoint в существующий `VMServiceScrape` (те же ресурсы, что уже используются для `pg-exporter`/`patroni`, см. [`postgres-cluster-deployment-with-monitoring.md`](postgres-cluster-deployment-with-monitoring.md)):
+Порт `9351` уже присутствует в headless Service и в `VMServiceScrape` чарта `postgres-cluster` безусловно (`templates/service-metrics.yaml`/`templates/vmservicescrape.yaml`, те же ресурсы, что уже используются для `pg-exporter`/`patroni`, см. [`postgres-cluster-deployment-with-monitoring.md`](postgres-cluster-deployment-with-monitoring.md)) — ничего дополнительно применять не нужно, `helm upgrade` из раздела 2 выше уже их обновил:
 
 ```yaml
-# postgres/installations/monitoring/postgres-metrics-svc.yaml
-spec:
-  ports:
-    - name: walg-exporter
-      port: 9351
-      targetPort: 9351
+ports:
+  - name: walg-exporter
+    port: 9351
+    targetPort: 9351
 ```
 
 ```yaml
-# postgres/installations/monitoring/vmservicescrape-postgres.yaml
-spec:
-  endpoints:
-    - port: walg-exporter
-      interval: 30s
-```
-
-```bash
-kubectl apply -f postgres/installations/monitoring/postgres-metrics-svc.yaml
-kubectl apply -f postgres/installations/monitoring/vmservicescrape-postgres.yaml
+endpoints:
+  - port: walg-exporter
+    interval: 30s
 ```
 
 ## 4. Дашборд в Grafana
 
-Апстрим поставляет готовый дашборд (`grafana/dashboard.json`), сохранён в репозитории как `monitoring/dashboards/postgresql-walg.json`. Деплоится так же, как и остальные дашборды — ConfigMap с лейблом `grafana_dashboard=1`. Аннотация `grafana_folder=Databases` кладёт дашборд в папку `Databases` (требует `sidecar.dashboards.folderAnnotation` и `provider.foldersFromFilesStructure: true` в `monitoring/vm-values.yaml`):
-
-```bash
-kubectl create configmap walg-exporter-dashboard \
-  --from-file=monitoring/dashboards/postgresql-walg.json \
-  --namespace monitoring \
-  --dry-run=client -o yaml | \
-kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
-kubectl apply -f -
-```
+Апстрим поставляет готовый дашборд (`grafana/dashboard.json`), сохранён в репозитории как `charts/monitoring-extras/dashboards/postgresql-walg.json`. Деплоится так же, как и остальные дашборды — ConfigMap с лейблом `grafana_dashboard=1`, генерируется автоматически чартом `monitoring-extras` (см. [`postgres-cluster-deployment-with-monitoring.md`, Шаг 5](postgres-cluster-deployment-with-monitoring.md)). Если релиз `monitoring-extras` уже установлен — этот дашборд в нём уже есть, ничего дополнительно применять не нужно.
 
 ![PostgreSQL WAL-G Backup](images/postgresql-walg.png)
 

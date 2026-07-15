@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgresql-exporter-custom-queries
-  namespace: postgres
+  namespace: {{ .Values.namespace }}
 data:
   queries.yaml: |
     pg_extension:

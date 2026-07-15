@@ -1,0 +1,9 @@
+# Second cluster, separate namespace — install as its own release:
+#   helm install chi-test-2 ./clickhouse-cluster -f values-test2.yaml
+namespace: clickhouse-2
+chiName: chi-test-2
+clusterName: test2
+
+backup:
+  s3:
+    pathPrefix: chi-test-2

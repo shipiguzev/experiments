@@ -2,11 +2,11 @@ apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
 metadata:
   name: clickhouse-operator
-  namespace: monitoring
+  namespace: {{ .Values.namespace }}
 spec:
   namespaceSelector:
     matchNames:
-      - clickhouse-operator
+      - {{ .Values.clickhouseOperator.namespace }}
   selector:
     matchLabels:
       app.kubernetes.io/name: altinity-clickhouse-operator
@@ -14,4 +14,3 @@ spec:
   endpoints:
     - port: ch-metrics
     - port: op-metrics
-

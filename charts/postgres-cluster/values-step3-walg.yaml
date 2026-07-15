@@ -1,0 +1,17 @@
+# docs/postgres-walg-backup-setup.md — enables WAL-G by populating postgres-pod-config.
+# Layer on top of the base values.yaml:
+#   helm upgrade --install postgres-cluster ./charts/postgres-cluster \
+#     --namespace postgres --create-namespace \
+#     -f charts/postgres-cluster/values-step3-walg.yaml
+#
+# The CR itself is unchanged on this step — WAL-G is wired up on the operator side
+# (configKubernetes.pod_environment_configmap/pod_environment_secret in
+# postgres/operator/postgres-operator-values.yaml, already a separate helm release) plus the
+# walg-config Secret created manually in the postgres namespace (kubectl create secret, see doc).
+podConfig:
+  USE_WALG_BACKUP: "true"
+  USE_WALG_RESTORE: "true"
+  CLONE_USE_WALG_RESTORE: "true"
+  WALG_DISABLE_S3_SSE: "true"
+  BACKUP_SCHEDULE: "0 2 * * *"
+  BACKUP_NUM_TO_RETAIN: "7"

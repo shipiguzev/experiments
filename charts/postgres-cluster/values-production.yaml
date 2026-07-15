@@ -1,0 +1,76 @@
+# Full production/from-scratch state of this cluster — matches the manifest this repo actually
+# runs (see docs/postgres-full-stack-from-scratch.md). Self-contained: use standalone,
+#   helm upgrade --install postgres-cluster ./charts/postgres-cluster \
+#     --namespace postgres --create-namespace -f charts/postgres-cluster/values-production.yaml
+# Do NOT chain this on top of values-step*.yaml — those model the historical build-up
+# (docs/postgres-cluster-deployment-with-monitoring.md → ... → postgres-walg-exporter-monitoring.md)
+# and intentionally diverge on one point: shared_preload_libraries here keeps pg_cron because a
+# from-scratch bootstrap needs it present at first boot (see postgres-pg-partman-setup.md), while
+# the historical upgrade path removes it later from an already-bootstrapped cluster.
+namespace: postgres
+# Namespace of the postgres-operator itself — postgres-pod-config must live here because
+# operator values reference it as "<namespace>/postgres-pod-config" (see
+# postgres/operator/postgres-operator-values.yaml: configKubernetes.pod_environment_configmap).
+operatorNamespace: postgres-operator
+
+clusterName: postgres-cluster
+teamId: test
+
+postgresql:
+  version: "18"
+  volumeSize: 1Gi
+  numberOfInstances: 3
+  parameters:
+    shared_preload_libraries: "bg_mon,pg_stat_statements,pgextwlist,pg_auth_mon,set_user,pg_stat_kcache,pg_cron,pg_partman_bgw"
+    pg_partman_bgw.interval: "3600"
+    pg_partman_bgw.role: "app_owner"
+    pg_partman_bgw.dbname: "app"
+
+databases:
+  app: app_owner
+
+preparedDatabases:
+  app:
+    defaultUsers: false
+    schemas:
+      public:
+        defaultRoles: false
+        defaultUsers: false
+      partman:
+        defaultRoles: false
+        defaultUsers: false
+    extensions:
+      pg_partman: partman
+
+sidecars:
+  postgresExporter:
+    image: prometheuscommunity/postgres-exporter:v0.12.1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
+  walgExporter:
+    image: ghcr.io/thedatabaseme/wal-g-exporter:latest
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+# Common WAL-G env for all clusters under this operator (USE_WALG_BACKUP, BACKUP_SCHEDULE, ...).
+podConfig:
+  USE_WALG_BACKUP: "true"
+  USE_WALG_RESTORE: "true"
+  CLONE_USE_WALG_RESTORE: "true"
+  WALG_DISABLE_S3_SSE: "true"
+  BACKUP_SCHEDULE: "0 2 * * *"
+  BACKUP_NUM_TO_RETAIN: "7"
+
+monitoring:
+  namespace: monitoring
+  scrapeInterval: 30s

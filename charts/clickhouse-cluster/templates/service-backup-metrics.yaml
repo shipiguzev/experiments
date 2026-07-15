@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.chiName }}-backup-metrics
+  namespace: {{ .Values.namespace }}
+  labels:
+    clickhouse.altinity.com/chi: {{ .Values.chiName }}
+spec:
+  selector:
+    clickhouse.altinity.com/chi: {{ .Values.chiName }}
+  clusterIP: None
+  ports:
+    - name: backup-api
+      port: 7171
+      targetPort: 7171

@@ -20,19 +20,19 @@ experiments/
 ├── cluster/
 │   └── kind-config.yaml
 ├── monitoring/
-│   ├── vm-values.yaml
-│   ├── clickhouse-datasource-cm.yaml
-│   └── dashboards/
-│       ├── altinity-clickhouse-operator-dashboard.json
-│       └── altinity-clickhouse-queries-dashboard.json
-└── clickhouse/
-    ├── operator/
-    │   └── clickhouse-operator-values.yaml
-    └── installations/
-        ├── chi-test.yaml
-        ├── chi-test-2.yaml                    # второй кластер в отдельном namespace, см. "Несколько кластеров"
-        └── monitoring/
-            └── vmservicescrape-clickhouse-operator.yaml
+│   └── vm-values.yaml
+├── clickhouse/
+│   └── operator/
+│       └── clickhouse-operator-values.yaml
+└── charts/
+    ├── clickhouse-cluster/                # CR ClickHouseInstallation, один чарт на оба кластера
+    │   ├── values.yaml                    # дефолт = финальное состояние (с backup, см. clickhouse-backup-setup.md)
+    │   ├── values-step5-base.yaml         # состояние на этом шаге: backup.enabled: false
+    │   └── values-test2.yaml              # оверрайд для второго кластера (namespace clickhouse-2)
+    └── monitoring-extras/                 # ClickHouse datasource(s), дашборды, vmservicescrape оператора
+        └── dashboards/
+            ├── altinity-clickhouse-operator-dashboard.json
+            └── altinity-clickhouse-queries-dashboard.json
 ```
 
 ## Шаг 1. Создание kind кластера
@@ -98,12 +98,17 @@ kubectl get pods -n clickhouse-operator
 
 **Топология кластера** — 1 шард и 2 реплики. Оператор создаст два пода: `chi-chi-test-test-0-0-0` и `chi-chi-test-test-0-1-0`. Для production репликация требует ZooKeeper или ClickHouse Keeper, в данном примере реплики независимы.
 
-```bash
-mkdir -p clickhouse/installations/monitoring
-```
+Разворачивается чартом `clickhouse-cluster` — этот же чарт позже в [clickhouse-backup-setup.md](clickhouse-backup-setup.md) добавит sidecar `clickhouse-backup` и PVC поверх этой же базы. Чтобы на этом шаге собрать именно "голый" кластер без backup, накладываем `values-step5-base.yaml`:
 
 ```yaml
-# clickhouse/installations/chi-test.yaml
+# charts/clickhouse-cluster/values-step5-base.yaml
+backup:
+  enabled: false
+```
+
+Эквивалент CR, который в итоге уходит оператору (шаблон `templates/clickhouseinstallation.yaml` + `values.yaml` + `values-step5-base.yaml`):
+
+```yaml
 apiVersion: "clickhouse.altinity.com/v1"
 kind: ClickHouseInstallation
 metadata:
@@ -126,11 +131,12 @@ spec:
           replicasCount: 2
 ```
 
-Примените манифест:
+Установите чарт:
 
 ```bash
-kubectl create namespace clickhouse
-kubectl apply -f clickhouse/installations/chi-test.yaml
+helm upgrade --install chi-test ./charts/clickhouse-cluster \
+  --namespace clickhouse --create-namespace \
+  --values charts/clickhouse-cluster/values-step5-base.yaml
 ```
 
 Следите за статусом:
@@ -152,10 +158,9 @@ kubectl get chi -n clickhouse -w
 - порт `ch-metrics` (8888) — метрики самих ClickHouse инсталляций: количество подов, статус, ошибки
 - порт `op-metrics` (9999) — метрики самого оператора: количество обработанных CHI, время reconciliation
 
-Манифест размещается в папке `clickhouse/installations/monitoring/`, так как относится к мониторингу конкретной инсталляции, а не к общей инфраструктуре мониторинга.
+Рендерится чартом `monitoring-extras` (`templates/vmservicescrape-clickhouse-operator.yaml`), а не отдельным манифестом — относится к мониторингу конкретной инсталляции, но живёт вместе с остальной обвязкой Grafana/VictoriaMetrics.
 
 ```yaml
-# clickhouse/installations/monitoring/vmservicescrape-clickhouse-operator.yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
 metadata:
@@ -178,10 +183,9 @@ spec:
 
 ConfigMap с лейблом `grafana_datasource: "1"` автоматически подхватывается sidecar-контейнером Grafana и добавляет datasource без ручной настройки через UI. Это позволяет управлять datasources как кодом (GitOps-подход) и не терять конфигурацию при рестарте Grafana.
 
-Datasource настраивается на подключение к ClickHouse через балансировщик `clickhouse-chi-test`, который автоматически создаётся оператором и распределяет запросы между репликами. Используется пользователь `monitoring`, созданный в предыдущем шаге.
+Datasource настраивается на подключение к ClickHouse через балансировщик `clickhouse-chi-test`, который автоматически создаётся оператором и распределяет запросы между репликами. Используется пользователь `monitoring`, созданный в предыдущем шаге. Тоже рендерится чартом `monitoring-extras` (`templates/clickhouse-datasource-cm.yaml`, `range` по `values.clickhouseClusters`):
 
 ```yaml
-# monitoring/clickhouse-datasource-cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -208,11 +212,12 @@ data:
           defaultDatabase: default
 ```
 
-Примените оба манифеста:
+Установите чарт (одним релизом заодно поднимутся все дашборды из Шага 5 ниже и — опционально, см. [grafana-image-renderer-setup.md](grafana-image-renderer-setup.md) — рендерер скриншотов):
 
 ```bash
-kubectl apply -f clickhouse/installations/monitoring/vmservicescrape-clickhouse-operator.yaml
-kubectl apply -f monitoring/clickhouse-datasource-cm.yaml
+helm upgrade --install monitoring-extras ./charts/monitoring-extras \
+  --namespace monitoring \
+  --values charts/monitoring-extras/values.yaml
 ```
 
 Проверьте, что VMServiceScrape в статусе `operational`:
@@ -240,17 +245,12 @@ curl -s -u admin:admin -X POST http://localhost:3000/api/datasources/uid/$DS_UID
 - автоматически восстанавливать дашборды после рестарта Grafana
 - деплоить несколько дашбордов одной командой
 
+Чарт `monitoring-extras` уже собирает ConfigMap для каждого файла из `charts/monitoring-extras/dashboards/*.json` (шаблон `templates/dashboards-cm.yaml`) — `helm upgrade --install` из Шага 4 выше уже применил и этот дашборд, ничего дополнительно делать не нужно. Обновить сам JSON (например, после `curl` свежей версии из апстрима) — переложить файл в `charts/monitoring-extras/dashboards/altinity-clickhouse-operator-dashboard.json` и повторить `helm upgrade`:
+
 ```bash
-mkdir -p monitoring/dashboards
 curl -s https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/grafana-dashboard/Altinity_ClickHouse_Operator_dashboard.json \
-  -o monitoring/dashboards/altinity-clickhouse-operator-dashboard.json
-kubectl create configmap altinity-clickhouse-operator-dashboard \
-  --from-file=monitoring/dashboards/altinity-clickhouse-operator-dashboard.json \
-  --namespace monitoring \
-  --dry-run=client -o yaml | \
-kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
-kubectl apply -f -
+  -o charts/monitoring-extras/dashboards/altinity-clickhouse-operator-dashboard.json
+helm upgrade monitoring-extras ./charts/monitoring-extras --namespace monitoring
 ```
 
 Дашборд появится в Grafana автоматически через 15-20 секунд.
@@ -262,7 +262,7 @@ kubectl apply -f -
 - Добавлена переменная `$namespace` (`label_values(chi_clickhouse_metric_Uptime, exported_namespace)`), через которую теперь цепочкой резолвятся `$chi` и `$hostname` (`$namespace → $chi → $hostname`, все три — multi-select с `Alll`). Без неё панель ниже не может фильтроваться по namespace.
 - Добавлена панель **«Throttled CPU, %»** (`container_cpu_cfs_throttled_seconds_total`). У неё есть два ограничения, оба — как в апстриме, не наши правки:
   - `pod=~"$hostname"` сравнивает лейбл `pod` (короткое имя пода из cAdvisor) со значением `$hostname`, которое для `chi_clickhouse_metric_*` — это **FQDN** (`chi-chi-test-test-0-0.clickhouse.svc.cluster.local`). Формат не совпадает, поэтому фильтр по хосту может не сработать.
-  - Метрика `container_cpu_cfs_throttled_seconds_total` в cAdvisor вообще не появляется, пока для контейнера не задан CPU limit (throttling считается относительно quota) — на `chi-test`/`chi-test-2` в этом репозитории CPU limits не заданы, так что панель показывает «No data» до тех пор, пока их не добавить в `clickhouse/installations/chi-test*.yaml` (`resources.limits.cpu`).
+  - Метрика `container_cpu_cfs_throttled_seconds_total` в cAdvisor вообще не появляется, пока для контейнера не задан CPU limit (throttling считается относительно quota) — на `chi-test`/`chi-test-2` в этом репозитории CPU limits не заданы, так что панель показывает «No data» до тех пор, пока их не добавить контейнеру `clickhouse` в шаблоне `charts/clickhouse-cluster/templates/clickhouseinstallation.yaml` (сейчас чарт не параметризует `resources` для основного контейнера, только для `clickhouse-backup`).
 
 **Грабли (исправлено в этом репозитории):** панель `Failed...` (stat, `chi_clickhouse_metric_fetch_errors`) фильтровала по `fetch_type="system.metrics"` (через точку) — реальный оператор (используемая здесь версия `altinity-clickhouse-operator` 0.27.1) экспортирует это же значение лейбла как `system_metrics` (через подчёркивание). Фильтр никогда не матчился, панель показывала «No data» вместо настоящего значения (в норме `0`). Исправлено на `fetch_type="system_metrics"`.
 
@@ -286,7 +286,7 @@ kubectl apply -f -
 - Переменные `exported_namespace` и `chi` ссылаются на `${DS_PROMETHEUS}` — Prometheus datasource из оригинального экспорта, которого в кластере нет. Строковая (не объектная) ссылка на несуществующий датасорс — это и есть основная причина баннера `Failed to upgrade legacy queries`: Grafana не может смигрировать её в объектный `{type, uid}` формат. Хотя сами переменные нигде не используются в запросах панелей, их нужно починить, иначе дашборд не грузится целиком. Фикс — заменить `datasource` на реальный объект `{"type": "prometheus", "uid": "VictoriaMetrics"}` (наш VictoriaMetrics datasource агрегирует ровно те метрики оператора — `chi_clickhouse_metric_*` с лейблами `exported_namespace`/`chi` — на которые эти переменные и рассчитаны).
 - Панель «Reqs/s type: $type; user: $user; query kind: $query_kind» (id `14`) использует макрос `$rate(...)`, который в плагине `vertamedia-clickhouse-datasource` всегда разворачивается через ClickHouse-функцию `runningDifference()`. Начиная с определённой версии ClickHouse эта функция задепрекейчена и по умолчанию заблокирована (`DEPRECATED_FUNCTION: ... set allow_deprecated_error_prone_window_functions to enable it`) — панель тихо показывает «No data» без явной ошибки (старая Angular-панель не всплывает баннер на 500 от датасорса). **Не включайте** `allow_deprecated_error_prone_window_functions` — ClickHouse не просто устарел, а прямо предупреждает, что функция даёт некорректные результаты в распределённых/многоблочных запросах (а тут `cluster('all-sharded', ...)` — ровно такой случай). Фикс — переписать запрос панели на тот же безопасный паттерн с оконной функцией `lag(...) OVER (ORDER BY t)`, который уже использует соседняя панель «Top N request's rate» (бакетирование по `$interval` вместо хардкода).
 
-Все три правки уже внесены в `monitoring/dashboards/altinity-clickhouse-queries-dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
+Все три правки уже внесены в `charts/monitoring-extras/dashboards/altinity-clickhouse-queries-dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
 
 Диагностика такого рода ошибок (панель молча показывает «No data») требует реального рендера — прямые запросы к ClickHouse через `datasource/proxy` с руками подобранными параметрами могут случайно воспроизводить другой (рабочий) вариант запроса. Надёжный способ — включить debug-логи плагина datasource (`kubectl set env deployment/vm-grafana -n monitoring GF_LOG_FILTERS="plugin.vertamedia-clickhouse-datasource:debug"`) и посмотреть логи `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) — headless Chromium логирует ошибки консоли браузера с полным URL, включая точный сгенерированный SQL:
 
@@ -294,16 +294,12 @@ kubectl apply -f -
 kubectl logs -n monitoring -l app=grafana-image-renderer --tail=200 | grep -i "500\|error"
 ```
 
+Уже применён вместе с остальными дашбордами на Шаге 4 (файл лежит в `charts/monitoring-extras/dashboards/altinity-clickhouse-queries-dashboard.json`). Обновление до свежей версии из апстрима — так же, как и для operator-дашборда:
+
 ```bash
 curl -s https://raw.githubusercontent.com/Altinity/clickhouse-operator/master/grafana-dashboard/ClickHouse_Queries_dashboard.json \
-  -o monitoring/dashboards/altinity-clickhouse-queries-dashboard.json
-kubectl create configmap clickhouse-queries-dashboard \
-  --from-file=monitoring/dashboards/altinity-clickhouse-queries-dashboard.json \
-  --namespace monitoring \
-  --dry-run=client -o yaml | \
-kubectl label --local -f - grafana_dashboard=1 --dry-run=client -o yaml | \
-kubectl annotate --local -f - grafana_folder=Databases --dry-run=client -o yaml | \
-kubectl apply -f -
+  -o charts/monitoring-extras/dashboards/altinity-clickhouse-queries-dashboard.json
+helm upgrade monitoring-extras ./charts/monitoring-extras --namespace monitoring
 ```
 
 Проверить, что датасорс реально отвечает на запросы (тот же путь, что использует панель дашборда — proxy к ClickHouse через Grafana):
@@ -320,13 +316,19 @@ curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_U
 
 ## Несколько кластеров в разных namespace
 
-Один оператор умеет обслуживать много `ClickHouseInstallation` в разных namespace — под это уже рассчитаны и оператор, и оба дашборда. В репозитории вторым примером развёрнут `chi-test-2` в namespace `clickhouse-2` (`clickhouse/installations/chi-test-2.yaml`, кластер `test2`), чтобы явно проверить эту схему на практике.
+Один оператор умеет обслуживать много `ClickHouseInstallation` в разных namespace — под это уже рассчитаны и оператор, и оба дашборда. В репозитории вторым примером развёрнут `chi-test-2` в namespace `clickhouse-2` (кластер `test2`), чтобы явно проверить эту схему на практике — как второй **релиз того же чарта** `clickhouse-cluster`, а не отдельный манифест.
 
 Что нужно на каждый новый кластер/namespace:
 
 1. **Namespace попадает в список оператора.** Добавить его в `watch.namespaces.include` в `clickhouse/operator/clickhouse-operator-values.yaml` и накатить `helm upgrade` — без этого оператор не увидит CHI в новом namespace.
-2. **Новый CHI-манифест** — копия `chi-test.yaml` с другим `metadata.name`/`namespace` и, чтобы не путать метрики/логи, другим именем кластера (`spec.configuration.clusters[].name`).
-3. **Отдельный Grafana datasource** — второй элемент в списке `datasources:` в `monitoring/clickhouse-datasource-cm.yaml`, с уникальным `name` и `url`, указывающим на балансировщик нового кластера (`clickhouse-<chi-name>.<namespace>.svc.cluster.local`).
+2. **Новый релиз чарта `clickhouse-cluster`** с оверрайдом `namespace`/`chiName`/`clusterName`/`backup.s3.pathPrefix` — в репозитории это `charts/clickhouse-cluster/values-test2.yaml`:
+   ```bash
+   helm upgrade --install chi-test-2 ./charts/clickhouse-cluster \
+     --namespace clickhouse-2 --create-namespace \
+     --values charts/clickhouse-cluster/values-step5-base.yaml \
+     --values charts/clickhouse-cluster/values-test2.yaml
+   ```
+3. **Отдельный Grafana datasource** — уже в `charts/monitoring-extras/values.yaml` (`clickhouseClusters` — список из двух элементов, `chi-test`/`chi-test-2`, с уникальными `name`/`url`, указывающими на балансировщик соответствующего кластера: `clickhouse-<chi-name>.<namespace>.svc.cluster.local`); при добавлении третьего кластера — просто дописать туда ещё один элемент и повторить `helm upgrade monitoring-extras`.
 
 Дальше ничего вручную донастраивать не нужно — оба дашборда уже параметризованы под multi-cluster:
 
