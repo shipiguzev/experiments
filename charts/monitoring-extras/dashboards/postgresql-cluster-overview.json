@@ -1789,8 +1789,8 @@
         "allValue": "",
         "current": {
           "selected": true,
-          "text": "All",
-          "value": "$__all"
+          "text": "postgres",
+          "value": "postgres"
         },
         "datasource": {
           "type": "prometheus",
@@ -1798,7 +1798,7 @@
         },
         "definition": "label_values(pg_up,namespace)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "namespace",
         "multi": false,
         "name": "namespace",
