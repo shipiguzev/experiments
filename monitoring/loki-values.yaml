@@ -1,0 +1,53 @@
+# Loki in SingleBinary mode with local filesystem storage (PVC) — this is a local kind sandbox,
+# a few tens of GB/day at most, no need for the SimpleScalable/Distributed object-storage modes.
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+singleBinary:
+  replicas: 1
+  persistence:
+    size: 5Gi
+
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Single-binary already serves push+query on one port (3100) — the nginx gateway split between
+# read/write paths only matters for the SimpleScalable/Distributed modes.
+gateway:
+  enabled: false
+
+# This chart bundles its own MinIO for object-storage modes — not used here (filesystem storage).
+minio:
+  enabled: false
+
+# Canary/test pods add extra moving parts not needed for a first minimal deployment.
+test:
+  enabled: false
+lokiCanary:
+  enabled: false
+
+# Memcached-backed caches default to 8Gi (chunks-cache) — sized for real traffic, massive
+# overkill for a kind sandbox with a handful of log-producing pods.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false

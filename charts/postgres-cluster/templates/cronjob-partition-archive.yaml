@@ -1,0 +1,81 @@
+{{- if .Values.partitionArchive.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.clusterName }}-partition-archive
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: {{ .Values.partitionArchive.schedule | quote }}
+  concurrencyPolicy: Forbid
+  # Kubernetes API defaults are 3 successful / 1 failed — bumped so a failed run's logs (kubectl
+  # logs -n postgres job/<name>) stay retrievable for longer than a single next-day overwrite.
+  successfulJobsHistoryLimit: {{ .Values.partitionArchive.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.partitionArchive.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          # Copies the mc binary from the minio/mc image onto a shared emptyDir — the Spilo image
+          # already has psql/pg_dump matching the server version, but no S3 client of its own.
+          initContainers:
+            - name: mc-bin
+              image: {{ .Values.partitionArchive.mcImage }}
+              command: ["sh", "-c", "cp /usr/bin/mc /mc-bin/mc"]
+              volumeMounts:
+                - name: mc-bin
+                  mountPath: /mc-bin
+          containers:
+            - name: archive
+              image: {{ .Values.partitionArchive.image }}
+              command:
+                - /bin/bash
+                - -c
+                - >-
+                  /mc-bin/mc alias set archive "$AWS_ENDPOINT" "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"
+                  && exec python3 /scripts/archive-partitions.py
+              env:
+                # Connects over TCP to the cluster Service (not the unix socket other sidecars in
+                # this chart use) — this pod runs outside the Postgres StatefulSet's pod network,
+                # so PGSSLMODE=require is mandatory: pg_hba.conf on this cluster has
+                # "hostnossl all all all reject" / "hostssl all all all md5" (verified against the
+                # live cluster), plain TCP without SSL is rejected outright.
+                - name: PGHOST
+                  value: {{ .Values.clusterName | quote }}
+                - name: PGDATABASE
+                  value: {{ .Values.partitionArchive.database | quote }}
+                - name: PGSSLMODE
+                  value: "require"
+                - name: RETENTION
+                  value: {{ .Values.partitionArchive.retention | quote }}
+                - name: S3_BUCKET
+                  value: {{ .Values.partitionArchive.s3.bucket | quote }}
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: "{{ .Values.partitionArchive.credentialsSecret }}"
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: "{{ .Values.partitionArchive.credentialsSecret }}"
+                      key: password
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.partitionArchive.s3.secretName }}
+              volumeMounts:
+                - name: mc-bin
+                  mountPath: /mc-bin
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                {{- toYaml .Values.partitionArchive.resources | nindent 16 }}
+          volumes:
+            - name: mc-bin
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: {{ .Values.clusterName }}-partition-archive-script
+                defaultMode: 0o555
+{{- end }}

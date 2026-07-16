@@ -1,0 +1,142 @@
+{{- if .Values.partitionArchive.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.clusterName }}-partition-archive-script
+  namespace: {{ .Values.namespace }}
+data:
+  archive-partitions.py: |
+    #!/usr/bin/env python3
+    import os
+    import re
+    import subprocess
+    import sys
+
+    # Passed straight through to Postgres as an ::interval literal (e.g. "30 days") — the same
+    # value is used both to pick eligible partitions below and as p_retention for
+    # partman.drop_partition_time(), so the two are always in sync.
+    RETENTION = os.environ["RETENTION"]
+    S3_BUCKET = os.environ["S3_BUCKET"]
+    PGDATABASE = os.environ["PGDATABASE"]
+    MC = "/mc-bin/mc"
+
+    SIZE_ZERO_RE = re.compile(r"Size\s*:\s*0(\.0+)?\s*B\b")
+
+
+    # SQL is always piped via stdin, never through -c: verified against a live cluster that psql's
+    # ":'var'" substitution is silently NOT applied to a query passed with -c ("syntax error at or
+    # near ':'"), only to a query it reads from stdin — this is true even non-interactively.
+    def psql_rows(sql, **variables):
+        cmd = ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-A", "-t"]
+        for key, value in variables.items():
+            cmd += ["-v", "{}={}".format(key, value)]
+        out = subprocess.run(cmd, input=sql, capture_output=True, text=True, check=True).stdout
+        return [tuple(line.split("|")) for line in out.splitlines() if line.strip()]
+
+
+    def psql_exec(sql, **variables):
+        cmd = ["psql", "-X", "-v", "ON_ERROR_STOP=1"]
+        for key, value in variables.items():
+            cmd += ["-v", "{}={}".format(key, value)]
+        subprocess.run(cmd, input=sql, text=True, check=True)
+
+
+    def managed_tables():
+        # partman.part_config is the single source of truth for which tables are partman-managed
+        # — no hardcoded table list here, so adding/removing a partitioned table in Postgres is
+        # picked up automatically on the next run.
+        return psql_rows("SELECT parent_table, partition_interval FROM partman.part_config ORDER BY parent_table;")
+
+
+    def eligible_partitions(parent_table, partition_interval):
+        # Mirrors the exact eligibility check inside partman.drop_partition_time() itself:
+        # child_start_time + partition_interval < now() - retention. This guarantees the set we
+        # archive here is the same set that call will later detach — no separate date parsing of
+        # partition names, which would silently drift for non-daily intervals.
+        # child_start_time is NULL for id/serial-based partition sets — CROSS JOIN LATERAL then
+        # drops that row entirely (partman.show_partition_info returns no row for those), so
+        # non-time partitioning is skipped rather than mishandled.
+        sql = """
+            SELECT sp.partition_schemaname, sp.partition_tablename
+            FROM partman.show_partitions(:'parent', 'ASC') sp
+            CROSS JOIN LATERAL partman.show_partition_info(
+                sp.partition_schemaname || '.' || sp.partition_tablename, :'interval', :'parent'
+            ) spi
+            WHERE spi.child_start_time IS NOT NULL
+              AND (spi.child_start_time + :'interval'::interval) < (now() - :'retention'::interval)
+            ORDER BY sp.partition_tablename;
+        """
+        return psql_rows(sql, parent=parent_table, interval=partition_interval, retention=RETENTION)
+
+
+    def archive_partition(schema, table):
+        rel_path = "{bucket}/{db}/{schema}/{table}.dump".format(
+            bucket=S3_BUCKET, db=PGDATABASE, schema=schema, table=table
+        )
+        alias_path = "archive/" + rel_path
+
+        print("-> dumping {}.{} to s3://{}".format(schema, table, rel_path))
+        dump = subprocess.Popen(["pg_dump", "-Fc", "-t", "{}.{}".format(schema, table)], stdout=subprocess.PIPE)
+        subprocess.run([MC, "pipe", alias_path], stdin=dump.stdout, check=True)
+        dump.stdout.close()
+        if dump.wait() != 0:
+            raise RuntimeError("pg_dump failed for {}.{}".format(schema, table))
+
+        stat = subprocess.run([MC, "stat", alias_path], capture_output=True, text=True)
+        if stat.returncode != 0:
+            raise RuntimeError(
+                "object {} not found in S3 after upload:\n{}{}".format(rel_path, stat.stdout, stat.stderr)
+            )
+        if SIZE_ZERO_RE.search(stat.stdout):
+            raise RuntimeError("uploaded object {} is 0 bytes:\n{}".format(rel_path, stat.stdout))
+
+
+    def main():
+        exit_code = 0
+        for parent_table, partition_interval in managed_tables():
+            print("== {}: retention {} ==".format(parent_table, RETENTION))
+            try:
+                partitions = eligible_partitions(parent_table, partition_interval)
+            except subprocess.CalledProcessError as e:
+                print("ERROR: could not enumerate partitions for {}: {}".format(parent_table, e), file=sys.stderr)
+                exit_code = 1
+                continue
+
+            if not partitions:
+                print("nothing to archive")
+                continue
+
+            all_ok = True
+            for schema, table in partitions:
+                try:
+                    archive_partition(schema, table)
+                except Exception as e:
+                    print("ERROR: {}".format(e), file=sys.stderr)
+                    all_ok = False
+
+            if not all_ok:
+                print(
+                    "ERROR: not all partitions of {} archived successfully "
+                    "— skipping detach for this run".format(parent_table),
+                    file=sys.stderr,
+                )
+                exit_code = 1
+                continue
+
+            print(
+                "-> detaching {} archived partition(s) from {} "
+                "(retention_keep_table=true, no DROP)".format(len(partitions), parent_table)
+            )
+            psql_exec(
+                "SELECT partman.drop_partition_time(:'parent', p_retention => :'retention'::interval, "
+                "p_keep_table => true);",
+                parent=parent_table,
+                retention=RETENTION,
+            )
+
+        sys.exit(exit_code)
+
+
+    if __name__ == "__main__":
+        main()
+{{- end }}

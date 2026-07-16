@@ -40,6 +40,10 @@ sidecars:
 
 podConfig: {}
 
+# Empty stub so templates can safely check .Values.partitionArchive.enabled even when this
+# feature's values file hasn't been layered on top — see values-step8-partition-archive.yaml.
+partitionArchive: {}
+
 monitoring:
   namespace: monitoring
   scrapeInterval: 30s

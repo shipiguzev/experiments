@@ -1,0 +1,7 @@
+# DaemonSet that tails container logs on every node and ships them to Loki (monitoring/loki-values.yaml).
+# Default client URL points at a "loki-gateway" service which only exists in SimpleScalable/
+# Distributed deployment modes — our Loki runs SingleBinary (no gateway), so it's overridden to
+# the Loki service's own push endpoint on port 3100.
+config:
+  clients:
+    - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push

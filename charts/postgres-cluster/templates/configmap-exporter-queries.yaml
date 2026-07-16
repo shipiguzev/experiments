@@ -29,3 +29,21 @@ data:
         - installed:
             usage: "GAUGE"
             description: "Extension is installed (always 1)"
+
+    pg_partman_partitions:
+      query: |
+        SELECT
+          current_database()                                             AS datname,
+          pc.parent_table,
+          (SELECT count(*) FROM partman.show_partitions(pc.parent_table)) AS partition_count
+        FROM partman.part_config pc;
+      metrics:
+        - datname:
+            usage: "LABEL"
+            description: "Database the partition set lives in"
+        - parent_table:
+            usage: "LABEL"
+            description: "pg_partman managed parent table (schema-qualified)"
+        - partition_count:
+            usage: "GAUGE"
+            description: "Number of partitions currently attached to this parent table"

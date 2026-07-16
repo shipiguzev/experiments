@@ -24,3 +24,8 @@ imageRenderer:
 # clickhouse-operator's own /metrics scrape (was monitoring/../vmservicescrape-clickhouse-operator.yaml).
 clickhouseOperator:
   namespace: clickhouse-operator
+
+# Loki deployed standalone via monitoring/loki-values.yaml (grafana/loki chart, SingleBinary mode)
+# — this just wires the datasource, see docs/loki-logging-setup.md.
+loki:
+  url: http://loki.monitoring.svc.cluster.local:3100

@@ -11,7 +11,9 @@ experiments/
 ├── cluster/
 │   └── kind-config.yaml                       # конфиг kind-кластера (1 control-plane + 3 worker)
 ├── monitoring/
-│   └── vm-values.yaml                         # values для victoria-metrics-k8s-stack
+│   ├── vm-values.yaml                         # values для victoria-metrics-k8s-stack
+│   ├── loki-values.yaml                       # values для grafana/loki (SingleBinary, filesystem)
+│   └── promtail-values.yaml                   # values для grafana/promtail (DaemonSet сбора логов)
 ├── postgres/
 │   └── operator/
 │       └── postgres-operator-values.yaml      # values postgres-operator (образ Spilo, WAL-G, major upgrade)
@@ -22,6 +24,7 @@ experiments/
 │   ├── postgres-cluster/                      # CR postgresql (3 инстанса) + monitoring-обвязка
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
+│   │   ├── values-step8-partition-archive.yaml # CronJob: архив старых pg_partman партиций в S3
 │   │   └── templates/
 │   ├── clickhouse-cluster/                    # CR ClickHouseInstallation + clickhouse-backup sidecar
 │   │   ├── Chart.yaml
@@ -53,6 +56,8 @@ experiments/
 7. **[Мониторинг бэкапов WAL-G через wal-g-exporter](docs/postgres-walg-exporter-monitoring.md)** — sidecar-экспортёр метрик base backup/WAL-архива, дашборд в Grafana.
 8. *(опционально)* **[Скриншоты дашбордов через grafana-image-renderer](docs/grafana-image-renderer-setup.md)** — отдельный сервис рендеринга для визуальной проверки дашбордов без браузера.
 9. **[Регулярный бэкап ClickHouse в S3 через clickhouse-backup](docs/clickhouse-backup-setup.md)** — sidecar-контейнер `clickhouse-backup` в поде `chi-test`, персистентный volume для `/var/lib/clickhouse`, инкрементальный + полный бэкап по расписанию.
+10. **[Архивирование старых партиций pg_partman в S3](docs/postgres-partition-archive-setup.md)** — `CronJob`, который выгружает (`pg_dump -Fc`) партиции старше retention в отдельный S3-бакет и только после подтверждённой загрузки отсоединяет их (`DETACH`, без `DROP`) через `partman.drop_partition_time`.
+11. **[Логи: Loki + Promtail на kind](docs/loki-logging-setup.md)** — Grafana Loki (SingleBinary, filesystem storage) + Promtail (DaemonSet), логи всех подов кластера доступны через Grafana Explore и переживают удаление самих объектов `Job`/`Pod`.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 
