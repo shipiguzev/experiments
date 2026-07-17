@@ -46,4 +46,4 @@ data:
             description: "pg_partman managed parent table (schema-qualified)"
         - partition_count:
             usage: "GAUGE"
-            description: "Number of partitions currently attached to this parent table"
+            description: "Number of partitions currently attached to this parent table (pg_partman)"

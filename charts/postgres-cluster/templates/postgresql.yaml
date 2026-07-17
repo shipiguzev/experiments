@@ -22,6 +22,10 @@ spec:
     parameters:
       {{- toYaml .Values.postgresql.parameters | nindent 6 }}
     {{- end }}
+  {{- if .Values.podAnnotations }}
+  podAnnotations:
+    {{- toYaml .Values.podAnnotations | nindent 4 }}
+  {{- end }}
   sidecars:
     - name: prometheus-postgres-exporter
       image: {{ .Values.sidecars.postgresExporter.image }}

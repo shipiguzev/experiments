@@ -44,6 +44,15 @@ podConfig: {}
 # feature's values file hasn't been layered on top — see values-step8-partition-archive.yaml.
 partitionArchive: {}
 
+# Propagated by the operator into the resulting StatefulSet's pod template (NOT the StatefulSet's
+# own top-level metadata — verified live that Reloader picks up the annotation from either place).
+# Stakater Reloader (docs/reloader-setup.md) watches this pod template for the ConfigMap it mounts
+# (postgresql-exporter-custom-queries) and rolls the cluster automatically on changes — without
+# it, editing configmap-exporter-queries.yaml requires the manual replica-then-leader pod restart
+# documented in postgres-walg-exporter-monitoring.md / postgres-partition-archive-setup.md.
+podAnnotations:
+  reloader.stakater.com/auto: "true"
+
 monitoring:
   namespace: monitoring
   scrapeInterval: 30s

@@ -58,6 +58,7 @@ experiments/
 9. **[Регулярный бэкап ClickHouse в S3 через clickhouse-backup](docs/clickhouse-backup-setup.md)** — sidecar-контейнер `clickhouse-backup` в поде `chi-test`, персистентный volume для `/var/lib/clickhouse`, инкрементальный + полный бэкап по расписанию.
 10. **[Архивирование старых партиций pg_partman в S3](docs/postgres-partition-archive-setup.md)** — `CronJob`, который выгружает (`pg_dump -Fc`) партиции старше retention в отдельный S3-бакет и только после подтверждённой загрузки отсоединяет их (`DETACH`, без `DROP`) через `partman.drop_partition_time`.
 11. **[Логи: Loki + Promtail на kind](docs/loki-logging-setup.md)** — Grafana Loki (SingleBinary, filesystem storage) + Promtail (DaemonSet), логи всех подов кластера доступны через Grafana Explore и переживают удаление самих объектов `Job`/`Pod`.
+12. **[Автоматический рестарт при изменении ConfigMap: Stakater Reloader](docs/reloader-setup.md)** — правка кастомных метрик `postgres-exporter` подхватывается сама, без ручного `kubectl delete pod`, через `podAnnotations` + repair-цикл оператора.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 
