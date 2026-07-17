@@ -19,3 +19,5 @@ spec:
       path: /metrics
     - port: walg-exporter
       interval: {{ .Values.monitoring.scrapeInterval }}
+    - port: pgsty-exporter
+      interval: {{ .Values.monitoring.scrapeInterval }}

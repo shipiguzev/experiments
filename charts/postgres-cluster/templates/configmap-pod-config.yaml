@@ -1,3 +1,13 @@
+{{- if .Values.podConfig }}
+{{/*
+postgres-pod-config is a single operator-wide resource (configKubernetes.pod_environment_configmap
+in postgres/operator/postgres-operator-values.yaml is one fixed name, shared by every cluster the
+operator manages) — not namespaced per Helm release. Only the release that actually needs to
+customize it (non-empty podConfig, e.g. the WAL-G values-step3-walg.yaml chain) should render it;
+a second postgres-cluster release with an empty podConfig (see values-postgres2-pgexporter.yaml)
+must not also try to own this same object, or Helm rejects the second release outright
+("invalid ownership metadata").
+*/}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,3 +15,4 @@ metadata:
   namespace: {{ .Values.operatorNamespace }}
 data:
   {{- toYaml .Values.podConfig | nindent 2 }}
+{{- end }}

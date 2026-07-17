@@ -1,0 +1,64 @@
+# docs/postgres-monitoring-guide-pg-exporter.md — second, independent postgres-cluster release in
+# its own namespace (postgres2), swapping the default prometheus-postgres-exporter sidecar for
+# pgsty/pg_exporter (port 9630, own auto-discovery, no custom-queries ConfigMap needed) —
+# analogous to how clickhouse-cluster's values-test2.yaml stands up a second ClickHouse cluster.
+#
+# Deploy standalone (does not layer on the walg/partman/etc values-step*.yaml chain — this is a
+# separate demo cluster, not part of that walkthrough):
+#   helm upgrade --install postgres-cluster-2 ./charts/postgres-cluster \
+#     --namespace postgres2 --create-namespace \
+#     --values charts/postgres-cluster/values.yaml \
+#     --values charts/postgres-cluster/values-postgres2-pgexporter.yaml
+#
+# Requires the pgsty/pg_exporter image pre-loaded into every kind node (kind's multi-platform
+# image handling can't load a manifest-list image directly — pull by the exact per-platform
+# digest, retag, then `kind load image-archive`; see docs/postgres-monitoring-guide-pg-exporter.md
+# section "Проблема multi-platform образов в kind"), and the postgresqls.acid.zalan.do CRD to
+# already allow postgresql.version: "18" (kubectl replace -f .../crds/postgresqls.yaml from the
+# operator's master branch — the Helm-chart-bundled CRD only goes up to "17").
+namespace: postgres2
+operatorNamespace: postgres-operator
+
+clusterName: postgres-cluster-2
+teamId: test
+
+postgresql:
+  # Matches the operator's configured Spilo image (ghcr.io/zalando/spilo-18:4.1-p1) — each Spilo
+  # image tag bundles exactly one PostgreSQL major version's binaries, so this must be "18", not
+  # the "14" in the dropped-in doc's sample manifest (leftover from an earlier draft using a
+  # spilo-14 image).
+  version: "18"
+  volumeSize: 1Gi
+  numberOfInstances: 3
+
+databases:
+  app: monitoring
+
+sidecars:
+  # Disabled (null overrides the default from values.yaml) — pgExporter below replaces it for
+  # this cluster, to actually exercise pg_exporter rather than run both side by side.
+  postgresExporter: null
+  pgExporter:
+    # Zalando's Sidecar CRD type has no imagePullPolicy field at all (verified against the CRD
+    # schema: only command/env/image/name/ports/resources) — the dropped-in doc's manifest
+    # example including it doesn't actually match this operator version. Not needed anyway: any
+    # tag other than "latest" already defaults to imagePullPolicy: IfNotPresent, which is exactly
+    # what's wanted for an image manually loaded into every kind node (see docs/postgres-monitoring-guide-pg-exporter.md).
+    image: pgsty/pg_exporter:arm64
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
+
+podConfig: {}
+
+# See templates/secret-walg-config-stub.yaml — postgres2 has no manually-created walg-config
+# Secret like the "postgres" namespace does, and the operator requires one to exist regardless.
+walgSecretStub: true
+
+monitoring:
+  namespace: monitoring
+  scrapeInterval: 30s

@@ -21,3 +21,6 @@ spec:
     - name: walg-exporter
       port: 9351
       targetPort: 9351
+    - name: pgsty-exporter
+      port: 9630
+      targetPort: 9630
