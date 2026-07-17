@@ -1,0 +1,394 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "custom": {
+        "align": "auto",
+        "cellOptions": {
+          "type": "auto"
+        },
+        "inspect": false
+      },
+      "mappings": [
+        {
+          "options": {
+            "0": {
+              "index": 1,
+              "text": "NO"
+            },
+            "1": {
+              "index": 0,
+              "text": "YES"
+            }
+          },
+          "type": "value"
+        }
+      ],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "green",
+            "value": null
+          },
+          {
+            "color": "red",
+            "value": 80
+          }
+        ]
+      },
+      "unit": "none"
+    },
+    "overrides": [
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Is Leader?"
+        },
+        "properties": [
+          {
+            "id": "custom.cellOptions",
+            "value": {
+              "mode": "gradient",
+              "type": "color-background"
+            }
+          },
+          {
+            "id": "mappings",
+            "value": [
+              {
+                "options": {
+                  "0": {
+                    "color": "transparent",
+                    "index": 1,
+                    "text": "NO"
+                  },
+                  "1": {
+                    "color": "dark-green",
+                    "index": 0,
+                    "text": "YES"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Is Replica?"
+        },
+        "properties": [
+          {
+            "id": "custom.cellOptions",
+            "value": {
+              "mode": "gradient",
+              "type": "color-background"
+            }
+          },
+          {
+            "id": "mappings",
+            "value": [
+              {
+                "options": {
+                  "0": {
+                    "color": "transparent",
+                    "index": 1,
+                    "text": "NO"
+                  },
+                  "1": {
+                    "color": "dark-green",
+                    "index": 0,
+                    "text": "YES"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Pending Restart?"
+        },
+        "properties": [
+          {
+            "id": "custom.cellOptions",
+            "value": {
+              "mode": "gradient",
+              "type": "color-background"
+            }
+          },
+          {
+            "id": "mappings",
+            "value": [
+              {
+                "options": {
+                  "0": {
+                    "color": "dark-green",
+                    "index": 1,
+                    "text": "NO"
+                  },
+                  "1": {
+                    "color": "semi-dark-orange",
+                    "index": 0,
+                    "text": "YES"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "id": "byName",
+          "options": "Uptime"
+        },
+        "properties": [
+          {
+            "id": "unit",
+            "value": "dtdurations"
+          }
+        ]
+      }
+    ]
+  },
+  "gridPos": {
+    "h": 6,
+    "w": 24,
+    "x": 0,
+    "y": 0
+  },
+  "id": 1,
+  "options": {
+    "cellHeight": "sm",
+    "footer": {
+      "countRows": false,
+      "fields": "",
+      "reducer": ["sum"],
+      "show": false
+    },
+    "frameIndex": 0,
+    "showHeader": true,
+    "sortBy": [
+      {
+        "desc": true,
+        "displayName": "Is Leader? (lastNotNull)"
+      }
+    ]
+  },
+  "pluginVersion": "11.1.0",
+  "targets": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "(patroni_primary{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"}) or (patroni_master{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"})",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "A"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "(patroni_replica{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"})",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "B"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_postgres_timeline{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "C"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_postgres_server_version{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "D"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_version{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "E"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_pending_restart{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "F"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_standby_leader{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "G"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "patroni_sync_standby{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": true,
+      "legendFormat": "",
+      "range": false,
+      "refId": "H"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "expr": "time() - patroni_postmaster_start_time{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
+      "format": "table",
+      "hide": false,
+      "instant": false,
+      "legendFormat": "",
+      "range": true,
+      "refId": "I"
+    }
+  ],
+  "title": "Patroni Cluster Status",
+  "transformations": [
+    {"id": "merge", "options": {}},
+    {
+      "id": "organize",
+      "options": {
+        "excludeByName": {
+          "Time": true,
+          "Value #I": false,
+          "__name__": true,
+          "container": true,
+          "endpoint": true,
+          "job": true,
+          "namespace": true,
+          "prometheus": true,
+          "scope": true,
+          "service": true
+        },
+        "includeByName": {},
+        "indexByName": {
+          "Time": 0,
+          "Value #A": 12,
+          "Value #B": 13,
+          "Value #C": 14,
+          "Value #D": 15,
+          "Value #E": 16,
+          "Value #F": 17,
+          "Value #G": 18,
+          "Value #H": 19,
+          "Value #I": 11,
+          "__name__": 1,
+          "container": 2,
+          "endpoint": 3,
+          "instance": 4,
+          "job": 5,
+          "namespace": 6,
+          "pod": 7,
+          "prometheus": 8,
+          "scope": 9,
+          "service": 10
+        },
+        "renameByName": {
+          "Value #A": "",
+          "instance": "",
+          "pod": ""
+        }
+      }
+    },
+    {
+      "id": "groupBy",
+      "options": {
+        "fields": {
+          "Instance": {"aggregations": [], "operation": "groupby"},
+          "Is Leader?": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Pod": {"aggregations": [], "operation": "groupby"},
+          "Value #A": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #B": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #C": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #D": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #E": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #F": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #G": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #H": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "Value #I": {"aggregations": ["lastNotNull"], "operation": "aggregate"},
+          "instance": {"aggregations": [], "operation": "groupby"},
+          "pod": {"aggregations": [], "operation": "groupby"}
+        }
+      }
+    },
+    {
+      "id": "organize",
+      "options": {
+        "excludeByName": {},
+        "includeByName": {},
+        "indexByName": {},
+        "renameByName": {
+          "Value #A (lastNotNull)": "Is Leader?",
+          "Value #B (lastNotNull)": "Is Replica?",
+          "Value #C (lastNotNull)": "TimeLine",
+          "Value #D (lastNotNull)": "PostgreSQL Version",
+          "Value #E (lastNotNull)": "Patroni Version",
+          "Value #F (lastNotNull)": "Pending Restart?",
+          "Value #G (lastNotNull)": "Patroni Standby Leader?",
+          "Value #H (lastNotNull)": "Sync Standby",
+          "Value #I (lastNotNull)": "Uptime",
+          "instance": "Instance",
+          "pod": "Pod"
+        }
+      }
+    }
+  ],
+  "type": "table"
+}

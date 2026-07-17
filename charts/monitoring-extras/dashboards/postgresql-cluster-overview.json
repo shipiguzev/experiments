@@ -27,10 +27,34 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": false,
-      "title": "WAL-G Backup",
+      "title": "PostgreSQL WAL-G Backup",
       "tooltip": "",
       "type": "link",
       "url": "/d/0ML78jy4z/postgresql-wal-g-backup?var-namespace=$namespace"
+    },
+    {
+      "asDashboard": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "PostgreSQL Partition Archiving (pg_partman)",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/pg-partman-archiving/postgresql-partition-archiving-pg-partman?var-namespace=$namespace"
+    },
+    {
+      "asDashboard": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "PostgreSQL Cluster Overview PG Exporter",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/aiflrrm/postgresql-cluster-overview-pg-exporter?var-namespace=$namespace"
     }
   ],
   "panels": [
@@ -48,172 +72,6 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "index": 1,
-                  "text": "NO"
-                },
-                "1": {
-                  "index": 0,
-                  "text": "YES"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Is Leader?"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "gradient",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "transparent",
-                        "index": 1,
-                        "text": "NO"
-                      },
-                      "1": {
-                        "color": "dark-green",
-                        "index": 0,
-                        "text": "YES"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Is Replica?"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "gradient",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "transparent",
-                        "index": 1,
-                        "text": "NO"
-                      },
-                      "1": {
-                        "color": "dark-green",
-                        "index": 0,
-                        "text": "YES"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Pending Restart?"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "gradient",
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "dark-green",
-                        "index": 1,
-                        "text": "NO"
-                      },
-                      "1": {
-                        "color": "semi-dark-orange",
-                        "index": 0,
-                        "text": "YES"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Uptime"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dtdurations"
-              }
-            ]
-          }
-        ]
-      },
       "gridPos": {
         "h": 6,
         "w": 24,
@@ -221,380 +79,14 @@
         "y": 1
       },
       "id": 1,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Is Leader? (lastNotNull)"
-          }
-        ]
+      "libraryPanel": {
+        "uid": "patroni-cluster-status",
+        "name": "Patroni Cluster Status"
       },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "(patroni_primary{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"}) or (patroni_master{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"})",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "(patroni_replica{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"})",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_postgres_timeline{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_postgres_server_version{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_version{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_pending_restart{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_standby_leader{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "G"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "patroni_sync_standby{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "",
-          "range": false,
-          "refId": "H"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "time() - patroni_postmaster_start_time{namespace=~\"$namespace\",scope=~\"$scope\",instance=~\"$instance\"}",
-          "format": "table",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "",
-          "range": true,
-          "refId": "I"
-        }
-      ],
       "title": "Patroni Cluster Status",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value #I": false,
-              "__name__": true,
-              "container": true,
-              "endpoint": true,
-              "job": true,
-              "namespace": true,
-              "prometheus": true,
-              "scope": true,
-              "service": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Time": 0,
-              "Value #A": 12,
-              "Value #B": 13,
-              "Value #C": 14,
-              "Value #D": 15,
-              "Value #E": 16,
-              "Value #F": 17,
-              "Value #G": 18,
-              "Value #H": 19,
-              "Value #I": 11,
-              "__name__": 1,
-              "container": 2,
-              "endpoint": 3,
-              "instance": 4,
-              "job": 5,
-              "namespace": 6,
-              "pod": 7,
-              "prometheus": 8,
-              "scope": 9,
-              "service": 10
-            },
-            "renameByName": {
-              "Value #A": "",
-              "instance": "",
-              "pod": ""
-            }
-          }
-        },
-        {
-          "id": "groupBy",
-          "options": {
-            "fields": {
-              "Instance": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "Is Leader?": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Pod": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "Value #A": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #B": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #C": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #D": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #E": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #F": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #G": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #H": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "Value #I": {
-                "aggregations": [
-                  "lastNotNull"
-                ],
-                "operation": "aggregate"
-              },
-              "instance": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "pod": {
-                "aggregations": [],
-                "operation": "groupby"
-              }
-            }
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {},
-            "includeByName": {},
-            "indexByName": {},
-            "renameByName": {
-              "Value #A (lastNotNull)": "Is Leader?",
-              "Value #B (lastNotNull)": "Is Replica?",
-              "Value #C (lastNotNull)": "TimeLine",
-              "Value #D (lastNotNull)": "PostgreSQL Version",
-              "Value #E (lastNotNull)": "Patroni Version",
-              "Value #F (lastNotNull)": "Pending Restart?",
-              "Value #G (lastNotNull)": "Patroni Standby Leader?",
-              "Value #H (lastNotNull)": "Sync Standby",
-              "Value #I (lastNotNull)": "Uptime",
-              "instance": "Instance",
-              "pod": "Pod"
-            }
-          }
-        }
-      ],
-      "type": "table"
+      "type": "library-panel-ref"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "sishort"
-        },
-        "overrides": []
-      },
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -602,34 +94,12 @@
         "y": 7
       },
       "id": 12,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "libraryPanel": {
+        "uid": "patroni-timeline",
+        "name": "Timeline"
       },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "patroni_postgres_timeline{namespace=~\"$namespace\", scope=~\"$scope\", instance=~\"$instance\"}",
-          "instant": false,
-          "legendFormat": "{{ pod }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
       "title": "Timeline",
-      "type": "timeseries"
+      "type": "library-panel-ref"
     },
     {
       "collapsed": false,
@@ -1053,65 +523,6 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
       "gridPos": {
         "h": 7,
         "w": 24,
@@ -1119,113 +530,14 @@
         "y": 28
       },
       "id": 11,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "libraryPanel": {
+        "uid": "postgres-pvc-storage",
+        "name": "Postgres PVC Storage (Used / Capacity)"
       },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum by (namespace, persistentvolumeclaim) (\n  kubelet_volume_stats_used_bytes{\n    namespace=~\"$namespace\",\n    persistentvolumeclaim=~\".*postgres.*\"\n  }\n)",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "used {{persistentvolumeclaim}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace, persistentvolumeclaim) (\n  kubelet_volume_stats_capacity_bytes{\n    namespace=~\"$namespace\",\n    persistentvolumeclaim=~\".*postgres.*\"\n  }\n)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "total {{persistentvolumeclaim}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
       "title": "Postgres PVC Storage (Used / Capacity)",
-      "type": "timeseries"
+      "type": "library-panel-ref"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMax": 1,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "dashed+area"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.25
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -1233,36 +545,12 @@
         "y": 35
       },
       "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "libraryPanel": {
+        "uid": "postgres-cpu-throttled",
+        "name": "Throttled CPU, %"
       },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_cfs_throttled_seconds_total{\n    namespace=~\"$namespace\",\n    container=~\"postgres\"\n  }[5m])\n)",
-          "instant": false,
-          "legendFormat": "{{ pod }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
       "title": "Throttled CPU, %",
-      "type": "timeseries"
+      "type": "library-panel-ref"
     },
     {
       "datasource": {
@@ -1719,29 +1007,6 @@
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "dateTimeAsIso"
-        },
-        "overrides": []
-      },
       "gridPos": {
         "h": 6,
         "w": 8,
@@ -1749,346 +1014,31 @@
         "y": 58
       },
       "id": 21,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
+      "libraryPanel": {
+        "uid": "walg-last-basebackup",
+        "name": "Last basebackup date"
       },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "walg_newest_basebackup{namespace=~\"$namespace\"} * 1000",
-          "legendFormat": "{{ pod }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
       "title": "Last basebackup date",
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 64
-      },
-      "id": 22,
-      "panels": [],
-      "title": "Partitioning (pg_partman)",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 65
-      },
-      "id": 23,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "pg_partman_partitions_partition_count{namespace=~\"$namespace\"}",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "{{parent_table}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Attached Partitions (drop = detach happened, rise = pg_partman premake)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 0,
-        "y": 73
-      },
-      "id": 24,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "sum(clamp_min(-delta(pg_partman_partitions_partition_count{namespace=~\"$namespace\"}[24h]), 0)) by (parent_table)",
-          "legendFormat": "{{parent_table}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Detached Partitions (last 24h)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 108000
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 73
-      },
-      "id": 25,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "time() - max(kube_cronjob_status_last_schedule_time{namespace=~\"$namespace\", cronjob=~\".*partition-archive.*\"}) by (cronjob)",
-          "legendFormat": "{{cronjob}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Archive CronJob: Time Since Last Scheduled Run",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": ""
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 73
-      },
-      "id": 26,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "11.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": ""
-          },
-          "editorMode": "code",
-          "expr": "sum(max_over_time(kube_job_status_failed{namespace=~\"$namespace\", job_name=~\".*partition-archive.*\"}[2d]))",
-          "legendFormat": "failed runs",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Archive CronJob: Failed Runs (last 2d)",
-      "type": "stat"
+      "type": "library-panel-ref"
     }
   ],
   "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
+      {
+        "current": {
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
+        },
+        "includeAll": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
       {
         "allValue": "",
         "current": {

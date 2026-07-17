@@ -1,0 +1,63 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {"mode": "palette-classic"},
+      "custom": {
+        "axisBorderShow": false,
+        "axisCenteredZero": false,
+        "axisColorMode": "text",
+        "axisLabel": "",
+        "axisPlacement": "auto",
+        "axisSoftMax": 1,
+        "axisSoftMin": 0,
+        "barAlignment": 0,
+        "drawStyle": "line",
+        "fillOpacity": 0,
+        "gradientMode": "none",
+        "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+        "insertNulls": false,
+        "lineInterpolation": "linear",
+        "lineWidth": 1,
+        "pointSize": 5,
+        "scaleDistribution": {"type": "linear"},
+        "showPoints": "auto",
+        "spanNulls": false,
+        "stacking": {"group": "A", "mode": "none"},
+        "thresholdsStyle": {"mode": "dashed+area"}
+      },
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {"color": "green", "value": null},
+          {"color": "red", "value": 0.25}
+        ]
+      },
+      "unit": "percentunit"
+    },
+    "overrides": []
+  },
+  "gridPos": {"h": 5, "w": 24, "x": 0, "y": 0},
+  "id": 14,
+  "options": {
+    "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true},
+    "tooltip": {"mode": "single", "sort": "none"}
+  },
+  "targets": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "expr": "sum by (namespace, pod) (\n  rate(container_cpu_cfs_throttled_seconds_total{\n    namespace=~\"$namespace\",\n    container=~\"postgres\"\n  }[5m])\n)",
+      "instant": false,
+      "legendFormat": "{{ pod }}",
+      "range": true,
+      "refId": "A"
+    }
+  ],
+  "title": "Throttled CPU, %",
+  "type": "timeseries"
+}

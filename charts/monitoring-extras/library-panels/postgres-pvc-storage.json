@@ -1,0 +1,74 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {"mode": "palette-classic"},
+      "custom": {
+        "axisBorderShow": false,
+        "axisCenteredZero": false,
+        "axisColorMode": "text",
+        "axisLabel": "",
+        "axisPlacement": "auto",
+        "barAlignment": 0,
+        "drawStyle": "line",
+        "fillOpacity": 0,
+        "gradientMode": "none",
+        "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+        "insertNulls": false,
+        "lineInterpolation": "linear",
+        "lineWidth": 1,
+        "pointSize": 5,
+        "scaleDistribution": {"type": "linear"},
+        "showPoints": "auto",
+        "spanNulls": false,
+        "stacking": {"group": "A", "mode": "none"},
+        "thresholdsStyle": {"mode": "off"}
+      },
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {"color": "green", "value": null},
+          {"color": "red", "value": 80}
+        ]
+      },
+      "unit": "bytes"
+    },
+    "overrides": []
+  },
+  "gridPos": {"h": 7, "w": 24, "x": 0, "y": 0},
+  "id": 11,
+  "options": {
+    "legend": {"calcs": [], "displayMode": "list", "placement": "right", "showLegend": true},
+    "tooltip": {"mode": "single", "sort": "none"}
+  },
+  "pluginVersion": "11.1.0",
+  "targets": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "exemplar": false,
+      "expr": "sum by (namespace, persistentvolumeclaim) (\n  kubelet_volume_stats_used_bytes{\n    namespace=~\"$namespace\",\n    persistentvolumeclaim=~\".*postgres.*\"\n  }\n)",
+      "format": "time_series",
+      "instant": false,
+      "legendFormat": "used {{persistentvolumeclaim}}",
+      "range": true,
+      "refId": "A"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "expr": "sum by (namespace, persistentvolumeclaim) (\n  kubelet_volume_stats_capacity_bytes{\n    namespace=~\"$namespace\",\n    persistentvolumeclaim=~\".*postgres.*\"\n  }\n)",
+      "hide": false,
+      "instant": false,
+      "legendFormat": "total {{persistentvolumeclaim}}",
+      "range": true,
+      "refId": "B"
+    }
+  ],
+  "title": "Postgres PVC Storage (Used / Capacity)",
+  "type": "timeseries"
+}

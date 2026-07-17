@@ -1,0 +1,41 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "${datasource}"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {"mode": "thresholds"},
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [{"color": "green", "value": null}]
+      },
+      "unit": "dateTimeAsIso"
+    },
+    "overrides": []
+  },
+  "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+  "id": 21,
+  "options": {
+    "colorMode": "value",
+    "graphMode": "area",
+    "justifyMode": "auto",
+    "orientation": "auto",
+    "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+    "textMode": "auto"
+  },
+  "pluginVersion": "11.1.0",
+  "targets": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "editorMode": "code",
+      "expr": "walg_newest_basebackup{namespace=~\"$namespace\"} * 1000",
+      "legendFormat": "{{ pod }}",
+      "range": true,
+      "refId": "A"
+    }
+  ],
+  "title": "Last basebackup date",
+  "type": "stat"
+}

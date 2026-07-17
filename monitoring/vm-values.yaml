@@ -3,6 +3,13 @@ grafana:
   adminPassword: admin
   image:
     tag: "11.1.0"
+  # Library panels (shared "Patroni" panels reused across postgresql-cluster-overview*
+  # dashboards) live in Grafana's own DB, not in chart files -- without a PVC they're
+  # lost on every pod restart, same as the dangling library-panel-refs already found
+  # and removed from postgresql-cluster-replication-pg-exporter.json.
+  persistence:
+    enabled: true
+    size: 1Gi
   plugins:
     - vertamedia-clickhouse-datasource
   env:

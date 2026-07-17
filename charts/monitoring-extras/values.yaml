@@ -4,6 +4,19 @@ namespace: monitoring
 # and provider.foldersFromFilesStructure: true in monitoring/vm-values.yaml (already set there).
 dashboardFolder: Databases
 
+# Panels shared across dashboards (e.g. the Patroni panels reused by both
+# postgresql-cluster-overview.json and postgresql-cluster-overview-pg-exporter.json) as real
+# Grafana library panels instead of duplicated JSON that silently drifts between copies. Library
+# panels live in Grafana's own DB (not chart files), so this needs grafana.persistence.enabled in
+# monitoring/vm-values.yaml -- without it they'd vanish on every pod restart, same as the dangling
+# library-panel-refs already found and removed from postgresql-cluster-replication-pg-exporter.json.
+# templates/library-panels-job.yaml upserts library-panels/*.json into Grafana via its API on
+# every install/upgrade (create-or-update, keyed by filename-as-uid) — the JSON files here are the
+# actual source of truth, in git like everything else.
+grafanaLibraryPanels:
+  url: http://vm-grafana.monitoring.svc.cluster.local:80
+  adminSecretName: vm-grafana
+
 clickhouseClusters:
   - name: chi-test
     url: http://clickhouse-chi-test.clickhouse.svc.cluster.local:8123

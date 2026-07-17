@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-library-panels
+  namespace: {{ .Values.namespace }}
+data:
+  {{- range $path, $_ := .Files.Glob "library-panels/*.json" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}

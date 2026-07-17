@@ -40,7 +40,32 @@
   "gnetId": 882,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDashboard": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Altinity ClickHouse Queries Dashboard",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/clickhouse-queries/altinity-clickhouse-queries-dashboard?var-exported_namespace=$namespace&var-chi=$chi"
+    },
+    {
+      "asDashboard": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "ClickHouse Backup",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/bfsdriwmh3q4gd/clickhouse-backup-clickhouse-backup?var-namespace=$namespace"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -5825,7 +5850,7 @@
         "current": {
           "selected": false,
           "text": "VictoriaMetrics",
-          "value": "P4169E866C3094E38"
+          "value": "VictoriaMetrics"
         },
         "hide": 2,
         "includeAll": false,

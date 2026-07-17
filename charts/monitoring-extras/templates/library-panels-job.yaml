@@ -1,0 +1,84 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-library-panels-sync
+  namespace: {{ .Values.namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: sync
+          image: alpine:3.20
+          env:
+            - name: GRAFANA_URL
+              value: {{ .Values.grafanaLibraryPanels.url | quote }}
+            - name: FOLDER_TITLE
+              value: {{ .Values.dashboardFolder | quote }}
+            - name: GRAFANA_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafanaLibraryPanels.adminSecretName }}
+                  key: admin-user
+            - name: GRAFANA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafanaLibraryPanels.adminSecretName }}
+                  key: admin-password
+          volumeMounts:
+            - name: panels
+              mountPath: /panels
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache curl jq >/dev/null
+
+              echo "waiting for Grafana at $GRAFANA_URL ..."
+              for i in $(seq 1 30); do
+                if curl -s -o /dev/null -w "%{http_code}" "$GRAFANA_URL/api/health" | grep -q 200; then
+                  break
+                fi
+                sleep 2
+              done
+
+              AUTH="-u ${GRAFANA_USER}:${GRAFANA_PASSWORD}"
+              BASE="${GRAFANA_URL}/api/library-elements"
+
+              FOLDER_UID=$(curl -s $AUTH "${GRAFANA_URL}/api/folders" \
+                | jq -r --arg t "$FOLDER_TITLE" '.[] | select(.title==$t) | .uid' | head -n1)
+              echo "target folder \"$FOLDER_TITLE\" -> uid=[$FOLDER_UID]"
+
+              for f in /panels/*.json; do
+                uid=$(basename "$f" .json)
+                name=$(jq -r '.title' "$f")
+                model=$(cat "$f")
+
+                code=$(curl -s -o /tmp/resp.json -w "%{http_code}" $AUTH "${BASE}/${uid}")
+                if [ "$code" = "200" ]; then
+                  version=$(jq '.result.version' /tmp/resp.json)
+                  body=$(jq -n --argjson model "$model" --arg name "$name" --arg folderUid "$FOLDER_UID" --argjson version "$version" \
+                    '{name:$name, folderUid:$folderUid, kind:1, model:$model, version:$version}')
+                  result=$(curl -s -o /tmp/resp2.json -w "%{http_code}" -X PATCH $AUTH "${BASE}/${uid}" -H "Content-Type: application/json" -d "$body")
+                  echo "updated $uid ($name): HTTP $result"
+                else
+                  body=$(jq -n --argjson model "$model" --arg name "$name" --arg uid "$uid" --arg folderUid "$FOLDER_UID" \
+                    '{name:$name, uid:$uid, folderUid:$folderUid, kind:1, model:$model}')
+                  result=$(curl -s -o /tmp/resp2.json -w "%{http_code}" -X POST $AUTH "${BASE}" -H "Content-Type: application/json" -d "$body")
+                  echo "created $uid ($name): HTTP $result"
+                fi
+                if [ "$result" != "200" ]; then
+                  cat /tmp/resp2.json
+                  exit 1
+                fi
+              done
+      volumes:
+        - name: panels
+          configMap:
+            name: grafana-library-panels
