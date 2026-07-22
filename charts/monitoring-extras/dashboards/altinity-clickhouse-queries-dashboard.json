@@ -257,6 +257,16 @@
               {
                 "id": "custom.width",
                 "value": 100
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-blues"
+                }
               }
             ]
           },
@@ -417,6 +427,16 @@
               {
                 "id": "custom.width",
                 "value": 100
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-blues"
+                }
               }
             ]
           },
@@ -583,6 +603,16 @@
               {
                 "id": "custom.width",
                 "value": 100
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-reds"
+                }
               }
             ]
           }
@@ -692,13 +722,379 @@
       "type": "table"
     },
     {
+      "columns": [],
+      "datasource": "$db",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "read_bytes"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-blues"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "read_rows"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "fontSize": "100%",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "height": "400px",
+      "id": 25,
+      "links": [],
+      "options": {
+        "showHeader": true
+      },
+      "pageSize": null,
+      "pluginVersion": "7.5.17",
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 3,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Time",
+          "align": "auto",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "t",
+          "type": "hidden"
+        },
+        {
+          "alias": "read_rows",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "pattern": "read_rows",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        },
+        {
+          "alias": "read_bytes",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "pattern": "read_bytes",
+          "thresholds": [],
+          "type": "number",
+          "unit": "bytes"
+        },
+        {
+          "alias": "",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": null,
+          "pattern": "count",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        },
+        {
+          "alias": "",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 2,
+          "pattern": "/.*/",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "database": "system",
+          "dateColDataType": "event_date",
+          "dateLoading": false,
+          "dateTimeColDataType": "event_time",
+          "dateTimeType": "DATETIME",
+          "datetimeLoading": false,
+          "expr": "",
+          "extrapolate": false,
+          "format": "table",
+          "interval": "",
+          "intervalFactor": 2,
+          "query": "SELECT\n    normalizeQuery(query) AS query,\n    avg(read_rows) read_rows,\n    avg(read_bytes) read_bytes,\n    count() count\nFROM cluster('all-sharded',system.query_log)\nWHERE\n    $timeFilter\n    AND( ('$type' = '1,2,3,4' AND type != 'QueryStart') OR ('$type' != '1,2,3,4' AND type IN ($type)))\n    $conditionalTest(AND query_kind IN ($query_kind), $query_kind)\n    $conditionalTest(AND initial_user IN ($user), $user)\n    $conditionalTest(AND query_duration_ms >= $min_duration_ms,$min_duration_ms)\n    $conditionalTest(AND query_duration_ms <= $max_duration_ms,$max_duration_ms)\nGROUP BY query\nORDER BY read_bytes DESC\nLIMIT $top",
+          "rawQuery": "SELECT\n    normalizeQuery(query) AS query,\n    avg(read_rows) read_rows,\n    avg(read_bytes) read_bytes,\n    count() count\nFROM cluster('all-sharded',system.query_log)\nWHERE\n    $timeFilter\n    AND( ('$type' = '1,2,3,4' AND type != 'QueryStart') OR ('$type' != '1,2,3,4' AND type IN ($type)))\n    $conditionalTest(AND query_kind IN ($query_kind), $query_kind)\n    $conditionalTest(AND initial_user IN ($user), $user)\n    $conditionalTest(AND query_duration_ms >= $min_duration_ms,$min_duration_ms)\n    $conditionalTest(AND query_duration_ms <= $max_duration_ms,$max_duration_ms)\nGROUP BY query\nORDER BY read_bytes DESC\nLIMIT $top",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "round": "0s",
+          "skip_comments": true,
+          "table": "query_log",
+          "tableLoading": false
+        }
+      ],
+      "title": "Top $top queries by reads by type: $type; user: $user; query kind: $query_kind",
+      "transform": "table",
+      "type": "table"
+    },
+    {
+      "columns": [],
+      "datasource": "$db",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpu_time_ms"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-blues"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      },
+      "fontSize": "100%",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "height": "400px",
+      "id": 26,
+      "links": [],
+      "options": {
+        "showHeader": true
+      },
+      "pageSize": null,
+      "pluginVersion": "7.5.17",
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 2,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Time",
+          "align": "auto",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "t",
+          "type": "hidden"
+        },
+        {
+          "alias": "cpu_time_ms",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "pattern": "cpu_time_ms",
+          "thresholds": [],
+          "type": "number",
+          "unit": "ms"
+        },
+        {
+          "alias": "",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": null,
+          "pattern": "count",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        },
+        {
+          "alias": "",
+          "align": "auto",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 2,
+          "pattern": "/.*/",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "database": "system",
+          "dateColDataType": "event_date",
+          "dateLoading": false,
+          "dateTimeColDataType": "event_time",
+          "dateTimeType": "DATETIME",
+          "datetimeLoading": false,
+          "expr": "",
+          "extrapolate": false,
+          "format": "table",
+          "interval": "",
+          "intervalFactor": 2,
+          "query": "SELECT\n    normalizeQuery(query) AS query,\n    avg(ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds']) / 1000 cpu_time_ms,\n    count() count\nFROM cluster('all-sharded',system.query_log)\nWHERE\n    $timeFilter\n    AND( ('$type' = '1,2,3,4' AND type != 'QueryStart') OR ('$type' != '1,2,3,4' AND type IN ($type)))\n    $conditionalTest(AND query_kind IN ($query_kind), $query_kind)\n    $conditionalTest(AND initial_user IN ($user), $user)\n    $conditionalTest(AND query_duration_ms >= $min_duration_ms,$min_duration_ms)\n    $conditionalTest(AND query_duration_ms <= $max_duration_ms,$max_duration_ms)\nGROUP BY query\nORDER BY cpu_time_ms DESC\nLIMIT $top",
+          "rawQuery": "SELECT\n    normalizeQuery(query) AS query,\n    avg(ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds']) / 1000 cpu_time_ms,\n    count() count\nFROM cluster('all-sharded',system.query_log)\nWHERE\n    $timeFilter\n    AND( ('$type' = '1,2,3,4' AND type != 'QueryStart') OR ('$type' != '1,2,3,4' AND type IN ($type)))\n    $conditionalTest(AND query_kind IN ($query_kind), $query_kind)\n    $conditionalTest(AND initial_user IN ($user), $user)\n    $conditionalTest(AND query_duration_ms >= $min_duration_ms,$min_duration_ms)\n    $conditionalTest(AND query_duration_ms <= $max_duration_ms,$max_duration_ms)\nGROUP BY query\nORDER BY cpu_time_ms DESC\nLIMIT $top",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "round": "0s",
+          "skip_comments": true,
+          "table": "query_log",
+          "tableLoading": false
+        }
+      ],
+      "title": "Top $top queries by CPU by type: $type; user: $user; query kind: $query_kind",
+      "transform": "table",
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "datasource": "$db",
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 28
       },
       "id": 23,
       "panels": [],
@@ -724,7 +1120,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 29
       },
       "hiddenSeries": false,
       "id": 14,
@@ -832,7 +1228,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 29
       },
       "hiddenSeries": false,
       "id": 16,
@@ -975,7 +1371,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 36
       },
       "id": 24,
       "panels": [],
@@ -1087,7 +1483,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 37
       },
       "id": 21,
       "links": [],
@@ -1248,8 +1644,8 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"}, exported_namespace)",
-        "description": null,
+        "definition": "query_result({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"} or {__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", exported_namespace=\"${db:text}\"})",
+        "description": "Matches the datasource name ${db:text} against either the \"chi\" label or the \"exported_namespace\" label, since different clusters name their ClickHouse Grafana datasource after one or the other (chi-test-style convention vs. namespace-style convention). Uses query_result()+regex instead of label_values() because label_values() executes via /api/v1/series, whose match[] only accepts a single metricSelector (no \"or\"); query_result() runs an instant /api/v1/query, which does support \"or\".",
         "error": null,
         "hide": 0,
         "includeAll": false,
@@ -1258,12 +1654,12 @@
         "name": "exported_namespace",
         "options": [],
         "query": {
-          "query": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"}, exported_namespace)",
+          "query": "query_result({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"} or {__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", exported_namespace=\"${db:text}\"})",
           "refId": "clickhouse-operator-prometheus-exported_namespace-Variable-Query",
-          "qryType": 1
+          "qryType": 3
         },
         "refresh": 1,
-        "regex": "",
+        "regex": "/exported_namespace=\"([^\"]+)\"/",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
