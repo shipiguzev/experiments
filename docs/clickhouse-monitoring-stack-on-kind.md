@@ -93,8 +93,10 @@ kubectl get pods -n clickhouse-operator
 **Пользователь для мониторинга** — создаётся отдельный пользователь `monitoring` с паролем вместо использования пользователя `default`. Это важно по нескольким причинам:
 
 - пользователь `default` по умолчанию ограничен сетевым доступом только с localhost и IP самих подов ClickHouse
-- профиль `readonly` запрещает любые изменения данных — Grafana получает доступ только на чтение
+- профиль `readonly` запрещает `INSERT`/`ALTER`/DDL — Grafana получает доступ только на чтение
 - сетевая политика `::/0` разрешает подключение с любого IP внутри кластера, что необходимо для Grafana pod
+
+**Почему `readonly/readonly: 2`, а не встроенный дефолт `1`:** сам профиль `readonly` в ClickHouse переопределён на уровень настройки `readonly=2` (см. `spec.configuration.profiles` в манифесте). Встроенный дефолт `readonly=1` блокирует **любое** изменение `SETTINGS` в теле запроса — а панели Grafana (и operator-дашборд, и queries-дашборд) сами отправляют `SETTINGS skip_unavailable_shards=1` вместе с запросом к `cluster('all-sharded', ...)`, чтобы не падать, если часть шардов недоступна. При `readonly=1` такие запросы завершаются ошибкой `Cannot modify 'skip_unavailable_shards' setting in readonly mode` — панели показывают ошибку датасорса вместо данных. `readonly=2` по-прежнему запрещает `INSERT`/`ALTER`/DDL (пользователь `monitoring` не может изменить данные), но разрешает переопределение `SETTINGS` в запросе — этого достаточно и безопасно для дашбордов.
 
 **Топология кластера** — 1 шард и 2 реплики. Оператор создаст два пода: `chi-chi-test-test-0-0-0` и `chi-chi-test-test-0-1-0`. Для production репликация требует ZooKeeper или ClickHouse Keeper, в данном примере реплики независимы.
 
@@ -116,13 +118,18 @@ metadata:
   namespace: clickhouse
 spec:
   configuration:
+    profiles:
+      # readonly=1 (встроенный дефолт) блокирует любой SETTINGS в теле запроса — ломает
+      # панели Grafana, которые шлют `SETTINGS skip_unavailable_shards=1`.
+      # readonly=2 по-прежнему запрещает INSERT/ALTER/DDL, но разрешает переопределение SETTINGS.
+      readonly/readonly: 2
     users:
       # Создаём отдельного пользователя для мониторинга
       monitoring/password: "monitoring"
       # Разрешаем подключение с любого IP внутри кластера
       monitoring/networks/ip:
         - "::/0"
-      # Профиль readonly — только чтение, без изменения данных
+      # Профиль readonly (уровень 2, см. выше) — без изменения данных, но с SETTINGS
       monitoring/profile: readonly
     clusters:
       - name: "test"
@@ -272,21 +279,28 @@ helm upgrade monitoring-extras ./charts/monitoring-extras --namespace monitoring
 
 ### ClickHouse Queries dashboard
 
-Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource.
+Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти/чтений/CPU, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource. Панели `Top slow queries`/`Top memory consumers`/`Top queries by reads`/`Top queries by CPU` подсвечивают основную метрику градиентным баром (`gradient-gauge`, `continuous-blues`), `Top failed queries` — тем же баром, но красным (`continuous-reds`), так как ненулевой счётчик ошибок сам по себе тревожный сигнал, а не нейтральная величина.
 
 Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Если датасорс этого типа один (`chi-test`), Grafana подставляет его автоматически; при нескольких (см. [«Несколько кластеров в разных namespace»](#несколько-кластеров-в-разных-namespace)) — выбирается вручную в UI.
 
-Переменные `$exported_namespace`/`$chi` (K8S Namespace / K8S Clickhouse Installation) связаны с `$db`: запрос `$exported_namespace` фильтрует метрики оператора по `chi="${db:text}"`, а `$chi` в свою очередь фильтрует по `exported_namespace="$exported_namespace"` — получается цепочка `$db → $exported_namespace → $chi`. Работает это благодаря соглашению из этого репозитория: имя Grafana-датасорса всегда совпадает с именем CHI (`chi-test` датасорс ↔ `chi="chi-test"` лейбл, `chi-test-2` ↔ `chi="chi-test-2"`), поэтому лейбл `chi` в метриках оператора однозначно резолвится из значения `$db`.
+Переменные `$exported_namespace`/`$chi` (K8S Namespace / K8S Clickhouse Installation) связаны с `$db`: запрос `$exported_namespace` фильтрует метрики оператора по `chi="${db:text}"` **или** по `exported_namespace="${db:text}"`, а `$chi` в свою очередь фильтрует по `exported_namespace="$exported_namespace"` — получается цепочка `$db → $exported_namespace → $chi`. Двойной фильтр (`or` по обоим лейблам) нужен потому, что соглашение «имя Grafana-датасорса совпадает с CHI» не универсально: в этом репозитории датасорс называется как CHI (`chi-test` ↔ `chi="chi-test"`), но на других стендах встречается и другое соглашение — датасорс называется как k8s-namespace инсталляции (`chi="clickhouse"` при этом единый на несколько неймспейсов, различаются только по `exported_namespace`). `$exported_namespace` матчит `${db:text}` по любому из двух лейблов, поэтому работает в обоих случаях.
 
 **Важно:** нужно именно `${db:text}`, а не просто `$db`. У переменной `db` (тип `datasource`) `value` — это **UID** датасорса (`P3BD5D6D86D49CEBA`), а не его имя; `$db` интерполируется в `value`, поэтому фильтр `chi="$db"` сравнивает лейбл с UID и никогда не совпадает — `$exported_namespace`/`$chi` молча остаются пустыми («None» в выпадающем списке). Модификатор `:text` заставляет Grafana подставить отображаемое имя (`chi-test`/`chi-test-2`), которое и совпадает с лейблом `chi`. Проверялось через debug-логи плагина (`GF_LOG_FILTERS=tsdb.prometheus:debug`) — без него ошибка не видна ни в UI, ни в обычных логах, а рендер через `grafana-image-renderer` в полном `kiosk`-режиме её тоже не ловит (полный kiosk скрывает панель переменных, и Grafana просто не резолвит то, что не отрисовывается; нужен `kiosk=tv`, который прячет только навигацию).
 
 **Известные особенности upstream-JSON (требуют правки перед деплоем):**
 
 - Переменные `type`, `user`, `query_kind` (тип `query`, датасорс `$db`) хранят `query` как обычную строку — legacy-формат Grafana. Плагин `vertamedia-clickhouse-datasource` не реализует миграцию такого формата, из-за чего при загрузке дашборда всплывает баннер `Templating / Failed to upgrade legacy queries`. Фикс — привести `query` к объектному виду `{"query": "<тот же SQL>", "refId": "<name>-Variable-Query"}`, как уже сделано для `exported_namespace`/`chi` и во всех остальных дашбордах репозитория.
-- Переменные `exported_namespace` и `chi` ссылаются на `${DS_PROMETHEUS}` — Prometheus datasource из оригинального экспорта, которого в кластере нет. Строковая (не объектная) ссылка на несуществующий датасорс — это и есть основная причина баннера `Failed to upgrade legacy queries`: Grafana не может смигрировать её в объектный `{type, uid}` формат. Хотя сами переменные нигде не используются в запросах панелей, их нужно починить, иначе дашборд не грузится целиком. Фикс — заменить `datasource` на реальный объект `{"type": "prometheus", "uid": "VictoriaMetrics"}` (наш VictoriaMetrics datasource агрегирует ровно те метрики оператора — `chi_clickhouse_metric_*` с лейблами `exported_namespace`/`chi` — на которые эти переменные и рассчитаны).
+- Переменные `exported_namespace` и `chi` ссылаются на `${DS_PROMETHEUS}` — Prometheus datasource из оригинального экспорта, которого в кластере нет. Строковая (не объектная) ссылка на несуществующий датасорс — это и есть основная причина баннера `Failed to upgrade legacy queries`: Grafana не может смигрировать её в объектный `{type, uid}` формат. Хотя сами переменные нигде не используются в запросах панелей, их нужно починить, иначе дашборд не грузится целиком. Фикс — добавить скрытую (`hide: 2`) переменную `DS_PROMETHEUS` типа `datasource` с фильтром `query: "prometheus"` (тот же паттерн, что уже был в Operator Dashboard) и ссылаться на неё как на `{"type": "prometheus", "uid": "${DS_PROMETHEUS}"}`. **Не хардкодьте** `uid` буквальной строкой `"VictoriaMetrics"` — в этом демо-кластере UID датасорса действительно совпадает с его именем, но это совпадение, не гарантия: на реальном стенде обнаружился датасорс с именем `VictoriaMetrics`, но случайным UID (`P4169E866C3094E38`), и захардкоженная строка молча резолвилась не в тот датасорс. Переменная `DS_PROMETHEUS` резолвит UID динамически при каждой загрузке дашборда, независимо от конкретного значения.
 - Панель «Reqs/s type: $type; user: $user; query kind: $query_kind» (id `14`) использует макрос `$rate(...)`, который в плагине `vertamedia-clickhouse-datasource` всегда разворачивается через ClickHouse-функцию `runningDifference()`. Начиная с определённой версии ClickHouse эта функция задепрекейчена и по умолчанию заблокирована (`DEPRECATED_FUNCTION: ... set allow_deprecated_error_prone_window_functions to enable it`) — панель тихо показывает «No data» без явной ошибки (старая Angular-панель не всплывает баннер на 500 от датасорса). **Не включайте** `allow_deprecated_error_prone_window_functions` — ClickHouse не просто устарел, а прямо предупреждает, что функция даёт некорректные результаты в распределённых/многоблочных запросах (а тут `cluster('all-sharded', ...)` — ровно такой случай). Фикс — переписать запрос панели на тот же безопасный паттерн с оконной функцией `lag(...) OVER (ORDER BY t)`, который уже использует соседняя панель «Top N request's rate» (бакетирование по `$interval` вместо хардкода).
 
-Все три правки уже внесены в `charts/monitoring-extras/dashboards/altinity-clickhouse-queries-dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
+Все правки уже внесены в `charts/monitoring-extras/dashboards/altinity-clickhouse-queries-dashboard.json` в этом репозитории — при повторном скачивании чистого JSON из upstream их нужно будет применить заново.
+
+**Грабли: `label_values(...)` не поддерживает `or` (исправлено в этом репозитории).** Первая попытка починить двойное соглашение из абзаца выше — добавить `or` прямо в `label_values({chi="${db:text}"} or {exported_namespace="${db:text}"}, exported_namespace)`. Она приводит к ошибке `cannot parse matches[]=... expecting metricSelector` — `label_values(selector, label)` у Grafana выполняется через `/api/v1/series?match[]=<selector>`, а этот эндпоинт принимает только одиночный `metricSelector` без бинарных операторов. `or` работает лишь в instant-запросах через `/api/v1/query`. Фикс — заменить `label_values(...)` на `query_result(...)` (выполняется как instant-запрос) с `regex` для извлечения нужного лейбла из строки результата:
+```
+query_result({__name__ =~ "chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors", chi="${db:text}"} or {__name__ =~ "chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors", exported_namespace="${db:text}"})
+regex: /exported_namespace="([^"]+)"/
+```
+Переменная `chi` осталась на `label_values(...)` без изменений — там нет `or` (одиночный матчер `exported_namespace="$exported_namespace"`), этот путь и раньше работал нормально.
 
 Диагностика такого рода ошибок (панель молча показывает «No data») требует реального рендера — прямые запросы к ClickHouse через `datasource/proxy` с руками подобранными параметрами могут случайно воспроизводить другой (рабочий) вариант запроса. Надёжный способ — включить debug-логи плагина datasource (`kubectl set env deployment/vm-grafana -n monitoring GF_LOG_FILTERS="plugin.vertamedia-clickhouse-datasource:debug"`) и посмотреть логи `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) — headless Chromium логирует ошибки консоли браузера с полным URL, включая точный сгенерированный SQL:
 
@@ -313,6 +327,10 @@ curl -s -u admin:admin -G "http://localhost:3000/api/datasources/proxy/uid/$DS_U
 ![Altinity ClickHouse Queries Dashboard](images/altinity-clickhouse-queries-dashboard.png)
 
 Панель `Top failed queries` пустая легитимно — в `system.query_log` этого кластера нет ни одной записи с `exception != ''` (проверено напрямую в ClickHouse), т.е. отражает реальное отсутствие ошибок, а не сломанный запрос.
+
+**Дополнительные панели (добавлены в этом репозитории, не из апстрима):** в ряду `Top charts` — `Top queries by reads` (`avg(read_rows)`/`avg(read_bytes)`, сортировка по `read_bytes`) и `Top queries by CPU` (`avg(ProfileEvents['UserTimeMicroseconds'] + ProfileEvents['SystemTimeMicroseconds']) / 1000` — CPU-время в мс, `ProfileEvents` в `system.query_log` это колонка типа `Map(String, UInt64)`). Обе используют те же переменные фильтрации (`$type`/`$user`/`$query_kind`/`$min_duration_ms`/`$max_duration_ms`/`$top`), что и остальные Top-панели.
+
+Скриншот выше сделан через `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) — по умолчанию рендерер выключен (`imageRenderer.enabled: false` в `charts/monitoring-extras/values.yaml`), включается через `--set imageRenderer.enabled=true` только когда нужен новый скриншот.
 
 ## Несколько кластеров в разных namespace
 
