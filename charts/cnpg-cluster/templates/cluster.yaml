@@ -1,0 +1,36 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  instances: {{ .Values.postgresql.instances }}
+  imageName: {{ .Values.postgresql.imageName }}
+
+  storage:
+    size: {{ .Values.postgresql.storageSize }}
+
+  monitoring:
+    # Scraped ourselves via VMPodScrape (templates/vmpodscrape.yaml) instead: this repo has no
+    # Prometheus Operator CRDs installed for the operator's own PodMonitor-based field to target
+    # (it uses the VictoriaMetrics Operator's CRDs everywhere else too).
+    enablePodMonitor: false
+
+  # Native barmanObjectStore, not the newer Barman Cloud Plugin (CNPG-I): the plugin needs its own
+  # operator + ObjectStore CRD + cert-manager-backed gRPC sidecar wiring. barmanObjectStore is
+  # deprecated upstream in favor of the plugin but still fully supported as of CNPG 1.30, and is
+  # far less moving parts for this sandbox — see docs/cnpg-cluster-setup.md "Известные особенности".
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.backup.destinationPath }}
+      endpointURL: {{ .Values.backup.endpointURL }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ .Values.backup.credentialsSecretName }}
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: {{ .Values.backup.credentialsSecretName }}
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}

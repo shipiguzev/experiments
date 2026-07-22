@@ -1,0 +1,20 @@
+# VMPodScrape, not VMServiceScrape (the pattern used by postgres-cluster/clickhouse-cluster) —
+# CNPG doesn't create a headless Service for its metrics port, and upstream's own current guidance
+# (since Cluster.spec.monitoring.enablePodMonitor was deprecated) is to scrape instance pods
+# directly by label, which VMPodScrape (the VictoriaMetrics Operator's native analog of
+# Prometheus Operator's PodMonitor) does without needing an extra Service just for this.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Values.monitoring.namespace }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ .Values.clusterName }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrapeInterval }}

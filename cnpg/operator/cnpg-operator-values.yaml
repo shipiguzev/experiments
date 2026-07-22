@@ -1,0 +1,17 @@
+# Values for cnpg/cloudnative-pg (chart repo https://cloudnative-pg.github.io/charts).
+# Installed cluster-wide (default) in its own cnpg-system namespace, side by side with the
+# unrelated Zalando postgres-operator (namespace postgres-operator) — different CRDs
+# (Cluster vs postgresql), no overlap.
+
+monitoring:
+  # The chart's own PodMonitor is a monitoring.coreos.com/v1 CRD (Prometheus Operator), which
+  # isn't installed in this repo — it uses the VictoriaMetrics Operator's CRDs instead (see
+  # charts/postgres-cluster/templates/vmservicescrape.yaml for the existing convention). We scrape
+  # the operator's own metrics (:8080/metrics) via monitoring-extras' vmpodscrape-cnpg-operator.yaml
+  # instead of enabling this.
+  podMonitorEnabled: false
+  grafanaDashboard:
+    # Same reasoning: the chart can self-provision a Grafana dashboard ConfigMap, but this repo
+    # vendors dashboards centrally under charts/monitoring-extras/dashboards (see
+    # docs/cnpg-cluster-setup.md) so all dashboard provisioning goes through one chart.
+    create: false

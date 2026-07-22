@@ -38,6 +38,13 @@ imageRenderer:
 clickhouseOperator:
   namespace: clickhouse-operator
 
+# cloudnative-pg operator's own /metrics scrape (port 8080, no Service — see
+# vmpodscrape-cnpg-operator.yaml). Needed for the vendored dashboard's "Operator Namespace"
+# variable, which reads controller_runtime_webhook_requests_total from the operator pods
+# themselves, not from any Cluster instance.
+cnpgOperator:
+  namespace: cnpg-system
+
 # Loki deployed standalone via monitoring/loki-values.yaml (grafana/loki chart, SingleBinary mode)
 # — this just wires the datasource, see docs/loki-logging-setup.md.
 loki:

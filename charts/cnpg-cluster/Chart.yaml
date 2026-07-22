@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cnpg-cluster
+description: CloudNativePG Cluster CR + Barman Cloud (native, non-plugin) backup config + monitoring glue, a side-by-side alternative to the Zalando-based postgres-cluster chart
+type: application
+version: 0.1.0

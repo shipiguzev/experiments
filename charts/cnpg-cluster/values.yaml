@@ -1,0 +1,33 @@
+# Mirrors the shape of charts/postgres-cluster/values-production.yaml (PG18, 3 instances,
+# scheduled backups to the same MinIO bucket) so the two operators run comparable workloads
+# side by side. See docs/cnpg-cluster-setup.md.
+namespace: cnpg
+clusterName: cnpg-cluster
+
+postgresql:
+  # ghcr.io/cloudnative-pg/postgresql:<major> is CNPG's own default image naming convention (a
+  # floating major-version tag, always the latest patch) — see cloudnative-pg/charts' "cluster"
+  # chart _helpers.tpl for confirmation, we're just setting it explicitly instead of depending on
+  # that chart.
+  imageName: ghcr.io/cloudnative-pg/postgresql:18
+  instances: 3
+  storageSize: 1Gi
+
+backup:
+  endpointURL: http://minio.minio.svc.cluster.local:9000
+  # Own prefix inside the same bucket WAL-G already uses (postgres-backups/spilo/postgres-cluster,
+  # see charts/postgres-cluster/values-production.yaml) — avoids collision while reusing the one
+  # MinIO instance instead of standing up a second.
+  destinationPath: s3://postgres-backups/cnpg/cnpg-cluster
+  # Not templated here — created manually the same way walg-config is (see
+  # docs/postgres-walg-backup-setup.md and docs/cnpg-cluster-setup.md), so real credentials never
+  # land in a values file.
+  credentialsSecretName: cnpg-minio-creds
+  # CNPG's cron format has a leading seconds field (6 fields, robfig/cron), unlike Zalando's 5-field
+  # BACKUP_SCHEDULE — "0 0 2 * * *" is the equivalent of Zalando's "0 2 * * *" (daily at 02:00).
+  schedule: "0 0 2 * * *"
+  retentionPolicy: "7d"
+
+monitoring:
+  namespace: monitoring
+  scrapeInterval: 30s

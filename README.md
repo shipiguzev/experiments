@@ -20,11 +20,18 @@ experiments/
 ├── clickhouse/
 │   └── operator/
 │       └── clickhouse-operator-values.yaml
+├── cnpg/
+│   └── operator/
+│       └── cnpg-operator-values.yaml          # values cnpg/cloudnative-pg — второй, независимый Postgres-оператор
 ├── charts/
 │   ├── postgres-cluster/                      # CR postgresql (3 инстанса) + monitoring-обвязка
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
 │   │   ├── values-step8-partition-archive.yaml # CronJob: архив старых pg_partman партиций в S3
+│   │   └── templates/
+│   ├── cnpg-cluster/                          # CR Cluster (CNPG) + ScheduledBackup + VMPodScrape
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
 │   │   └── templates/
 │   ├── clickhouse-cluster/                    # CR ClickHouseInstallation + clickhouse-backup sidecar
 │   │   ├── Chart.yaml
@@ -59,6 +66,7 @@ experiments/
 10. **[Архивирование старых партиций pg_partman в S3](docs/postgres-partition-archive-setup.md)** — `CronJob`, который выгружает (`pg_dump -Fc`) партиции старше retention в отдельный S3-бакет и только после подтверждённой загрузки отсоединяет их (`DETACH`, без `DROP`) через `partman.drop_partition_time`.
 11. **[Логи: Loki + Promtail на kind](docs/loki-logging-setup.md)** — Grafana Loki (SingleBinary, filesystem storage) + Promtail (DaemonSet), логи всех подов кластера доступны через Grafana Explore и переживают удаление самих объектов `Job`/`Pod`.
 12. **[Автоматический рестарт при изменении ConfigMap: Stakater Reloader](docs/reloader-setup.md)** — правка кастомных метрик `postgres-exporter` подхватывается сама, без ручного `kubectl delete pod`, через `podAnnotations` + repair-цикл оператора.
+13. **[CloudNativePG: второй Postgres-оператор бок о бок с Zalando](docs/cnpg-cluster-setup.md)** — независимый оператор `Cluster` CRD в своём namespace, бэкапы в тот же MinIO под отдельным префиксом, мониторинг через `VMPodScrape` вместо `VMServiceScrape`, официальный дашборд `cloudnative-pg/grafana-dashboards`.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 

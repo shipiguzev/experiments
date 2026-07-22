@@ -1,0 +1,18 @@
+# VMPodScrape, not VMServiceScrape: the cnpg/cloudnative-pg chart's only Service is the webhook
+# Service (port 443, TLS, not metrics) — controller metrics are only exposed on the operator pod's
+# own :8080/metrics container port, matching the upstream chart's own PodMonitor template.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: cnpg-operator
+  namespace: {{ .Values.namespace }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.cnpgOperator.namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+      app.kubernetes.io/instance: cnpg-operator
+  podMetricsEndpoints:
+    - port: metrics
