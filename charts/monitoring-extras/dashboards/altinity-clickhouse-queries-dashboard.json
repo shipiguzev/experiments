@@ -1224,11 +1224,29 @@
         "type": "datasource"
       },
       {
+        "current": {
+          "selected": false,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
+        },
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
         "allValue": null,
         "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "VictoriaMetrics"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=\"${db:text}\"}, exported_namespace)",
         "description": null,
@@ -1259,7 +1277,7 @@
         "current": {},
         "datasource": {
           "type": "prometheus",
-          "uid": "VictoriaMetrics"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values({__name__ =~ \"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", exported_namespace=\"$exported_namespace\"}, chi)",
         "description": null,
