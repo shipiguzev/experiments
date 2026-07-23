@@ -277,6 +277,26 @@ helm upgrade monitoring-extras ./charts/monitoring-extras --namespace monitoring
 
 Все остальные «No data» на этом дашборде (`DNS and Distributed Connection Errors`, `Replication and ZooKeeper Exceptions`, `Zookeeper Transactions`, `Insert Queries (running)`, `Detached parts`, `Mutations`) — легитимное отсутствие данных, а не баги: в этом стенде нет ZooKeeper/Keeper (реплики независимы, см. Шаг 3), ни разу не выполнялся реальный `INSERT` в ClickHouse, и нет отсоединённых партов/мутаций. Проверено напрямую через `system.events`/`system.mutations`/`system.detached_parts` в самом ClickHouse.
 
+**Дополнительные панели (добавлены в этом репозитории, не из апстрима):** апстрим-дашборд уже показывает состояние партов **на текущий момент** — панель `Table Stats` (`chi_clickhouse_table_parts_bytes`/`_rows`/`chi_clickhouse_table_parts`, `instant: true`, таблица с сортировкой по размеру), но не их изменение во времени. Те же три метрики уже собираются VMAgent'ом (через `ch-metrics`, см. Шаг 4) и хранятся в VictoriaMetrics как time series — не хватало только графиков поверх них. Добавлено три панели (id `65`–`67`, `timeseries`, ряд по `database, table, hostname`, все — под `system.parts`):
+
+- **Table Size Over Time** — `sum(chi_clickhouse_table_parts_bytes{active="1"})`, единица `decbytes`.
+- **Parts Count Over Time** — `sum(chi_clickhouse_table_parts{active="1"})`. Постоянно растущее число партов (быстрее, чем их сводят мержи) — обычно признак слишком частых мелких `INSERT`; сверяйте с панелью `Max Part count for Partition` выше (порог `parts_to_throw_insert` по умолчанию — 3000).
+- **Avg Part Size Over Time** — `bytes / parts_count`, единица `decbytes`. Падающий средний размер парта при растущем их количестве — тот же симптом раньше по времени, чем прямой рост `Parts Count`.
+
+Добавлены две переменные — `$database`/`$table` (multi-select, `label_values(chi_clickhouse_table_parts_bytes{...}, database/table)`, цепочка `$database → $table` как у `$namespace → $chi → $hostname`), фильтруют все три новые панели; на остальные панели дашборда не влияют. По умолчанию — `All` (`.*`), то есть без выбора видно сразу все базы/таблицы, включая системные (`system.query_log`, `system.metric_log` и т.п.) — сузьте через фильтр, если график становится нечитаемым от количества серий.
+
+Легенда каждой панели — `{{database}}.{{table}} ({{hostname}})`: имя реплики оставлено в легенде намеренно — реплики независимые (без ZooKeeper/Keeper, см. Шаг 3), поэтому размер одной и той же таблицы может отличаться между `chi-chi-test-test-0-0-0` и `chi-chi-test-test-0-1-0`, и это важно видеть, а не усреднять.
+
+Скриншоты сняты после создания трёх тестовых таблиц (`default.events`/`default.metrics`/`default.app_logs`, `MergeTree`) и заливки в них данных несколькими отдельными `INSERT ... SELECT ... FROM numbers(N)` (разным объёмом на каждую реплику — специально, чтобы проверить, что реплики действительно независимые) — виден скачок в момент заливки и последующее слияние партов фоновым мержем:
+
+![Table Size Over Time](images/clickhouse-table-size-over-time.png)
+![Parts Count Over Time](images/clickhouse-parts-count-over-time.png)
+![Avg Part Size Over Time](images/clickhouse-avg-part-size-over-time.png)
+
+На панели `Parts Count Over Time` видно, как `default.events` на `chi-chi-test-test-0-0-0` (жёлтая линия) падает с 5 партов до 1 — фоновый мерж успел объединить их ещё до снятия скриншота; соответствующий скачок вверх на `Avg Part Size Over Time` — рост среднего размера парта после этого же слияния (пять мелких частей стали одной большой).
+
+Скриншоты сняты через `grafana-image-renderer` (см. [настройку рендерера](grafana-image-renderer-setup.md)) поштучно на каждую панель (`/render/d-solo/<uid>/<slug>?panelId=<id>`, а не весь дашборд целиком — с тремя новыми панелями внизу списка из 42 полный рендер получился бы избыточно длинным), с `var-database=default`, чтобы отфильтровать системные таблицы ClickHouse (`system.query_log` и т.п.) и оставить только тестовые.
+
 ### ClickHouse Queries dashboard
 
 Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти/чтений/CPU, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource. Панели `Top slow queries`/`Top memory consumers`/`Top queries by reads`/`Top queries by CPU` подсвечивают основную метрику градиентным баром (`gradient-gauge`, `continuous-blues`), `Top failed queries` — тем же баром, но красным (`continuous-reds`), так как ненулевой счётчик ошибок сам по себе тревожный сигнал, а не нейтральная величина.

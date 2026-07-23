@@ -5839,6 +5839,321 @@
       ],
       "title": "Throttled CPU, %",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "sum(bytes_on_disk) of active parts per table, per replica — tracks table growth over time.\n\nSame source metric as the \"Table Stats\" snapshot panel above (chi_clickhouse_table_parts_bytes), just historized instead of instant.\n",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 98
+      },
+      "id": 65,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "system.parts",
+          "url": "https://clickhouse.com/docs/en/operations/system-tables/parts"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (database, table, hostname) (chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",database=~\"$database\",table=~\"$table\", active=\"1\"})",
+          "legendFormat": "{{database}}.{{table}} ({{hostname}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Table Size Over Time (active parts)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Number of active parts per table, per replica. A steadily climbing count (faster than merges bring it back down) usually means too many small INSERTs / too-frequent inserts relative to the merge rate — watch this alongside \"Max Part count for Partition\" above (parts_to_throw_insert defaults to 3000).\n",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 107
+      },
+      "id": 66,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "system.parts",
+          "url": "https://clickhouse.com/docs/en/operations/system-tables/parts"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (database, table, hostname) (chi_clickhouse_table_parts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",database=~\"$database\",table=~\"$table\", active=\"1\"})",
+          "legendFormat": "{{database}}.{{table}} ({{hostname}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Parts Count Over Time (active parts)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "bytes_on_disk / parts_count per table, per replica. Falling average part size with a rising part count is the earlier warning sign of the same problem \"Parts Count Over Time\" flags directly — merges aren't keeping small parts consolidated.\n",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 116
+      },
+      "id": 67,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "system.parts",
+          "url": "https://clickhouse.com/docs/en/operations/system-tables/parts"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.4.3",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (database, table, hostname) (chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",database=~\"$database\",table=~\"$table\", active=\"1\"}) / sum by (database, table, hostname) (chi_clickhouse_table_parts{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",database=~\"$database\",table=~\"$table\", active=\"1\"})",
+          "legendFormat": "{{database}}.{{table}} ({{hostname}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Part Size Over Time (active parts)",
+      "type": "timeseries"
     }
   ],
   "refresh": "1m",
@@ -5957,6 +6272,80 @@
         "query": {
           "qryType": 1,
           "query": "label_values({__name__=~\"chi_clickhouse_metric_Uptime|chi_clickhouse_metric_fetch_errors\", chi=~\"$chi\", exported_namespace=\"$namespace\"},hostname)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\"},database)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Database",
+        "multi": true,
+        "name": "database",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\"},database)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\",database=~\"$database\"},table)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Table",
+        "multi": true,
+        "name": "table",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(chi_clickhouse_table_parts_bytes{exported_namespace=~\"$namespace\",chi=~\"$chi\",hostname=~\"$hostname\",active=\"1\",database=~\"$database\"},table)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
