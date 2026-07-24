@@ -20,6 +20,21 @@
   namespace и `chiName`/`clusterName`, отдельный `backup.s3.pathPrefix`, плюс отдельная запись в
   `charts/monitoring-extras/values.yaml` под `clickhouseClusters:` (иначе не появится datasource
   в Grafana). См. skill `new-clickhouse-cluster`.
+- **Новый кластер Postgres под Zalando-оператором** (по образцу `values-postgres2-pgexporter.yaml`):
+  отдельный namespace, `clusterName`, `walgSecretStub: true` — мониторинг (`VMServiceScrape`)
+  заводится автоматически из values чарта, отдельная запись в `monitoring-extras` не нужна (в
+  отличие от ClickHouse). См. skill `new-postgres-cluster`.
+- **Новый кластер под CNPG**: отдельный namespace/`clusterName`, отдельный `backup.destinationPath`
+  внутри общего бакета и отдельный Secret с кредами (не темплейтится). Один оператор `cnpg-operator`
+  общий для всех — `clusterWide: true`, per-кластерная конфигурация оператора не нужна. См. skill
+  `new-cnpg-cluster`.
+- **Major version upgrade Postgres** (Zalando/Spilo `inplace_upgrade.py`) — у скрипта нет
+  dry-run: любой запуск при совместимых кластерах сразу выполняет реальный апгрейд данных. Патч CRD
+  под новую версию откатывается при каждом рестарте пода оператора, не только при `helm upgrade`.
+  См. skill `postgres-major-version-upgrade`.
+- **WAL-G бэкапы не работают** (архив не пишется, `archive_command` = `/bin/true`, реплики не
+  стартуют после апгрейда/пересоздания кластера) — оба известных класса багов и их причины
+  см. skill `walg-backup-troubleshooting`.
 
 ## Конвенции доков (`docs/*.md`)
 
