@@ -90,13 +90,13 @@ kubectl get pods -n clickhouse-operator
 
 В манифесте определяются:
 
-**Пользователь для мониторинга** — создаётся отдельный пользователь `monitoring` с паролем вместо использования пользователя `default`. Это важно по нескольким причинам:
+**Пользователь для мониторинга** — создаётся отдельный пользователь `grafana_monitoring` с паролем вместо использования пользователя `default`. Это важно по нескольким причинам:
 
 - пользователь `default` по умолчанию ограничен сетевым доступом только с localhost и IP самих подов ClickHouse
 - профиль `readonly` запрещает `INSERT`/`ALTER`/DDL — Grafana получает доступ только на чтение
 - сетевая политика `::/0` разрешает подключение с любого IP внутри кластера, что необходимо для Grafana pod
 
-**Почему `readonly/readonly: 2`, а не встроенный дефолт `1`:** сам профиль `readonly` в ClickHouse переопределён на уровень настройки `readonly=2` (см. `spec.configuration.profiles` в манифесте). Встроенный дефолт `readonly=1` блокирует **любое** изменение `SETTINGS` в теле запроса — а панели Grafana (и operator-дашборд, и queries-дашборд) сами отправляют `SETTINGS skip_unavailable_shards=1` вместе с запросом к `cluster('all-sharded', ...)`, чтобы не падать, если часть шардов недоступна. При `readonly=1` такие запросы завершаются ошибкой `Cannot modify 'skip_unavailable_shards' setting in readonly mode` — панели показывают ошибку датасорса вместо данных. `readonly=2` по-прежнему запрещает `INSERT`/`ALTER`/DDL (пользователь `monitoring` не может изменить данные), но разрешает переопределение `SETTINGS` в запросе — этого достаточно и безопасно для дашбордов.
+**Почему `readonly/readonly: 2`, а не встроенный дефолт `1`:** сам профиль `readonly` в ClickHouse переопределён на уровень настройки `readonly=2` (см. `spec.configuration.profiles` в манифесте). Встроенный дефолт `readonly=1` блокирует **любое** изменение `SETTINGS` в теле запроса — а панели Grafana (и operator-дашборд, и queries-дашборд) сами отправляют `SETTINGS skip_unavailable_shards=1` вместе с запросом к `cluster('all-sharded', ...)`, чтобы не падать, если часть шардов недоступна. При `readonly=1` такие запросы завершаются ошибкой `Cannot modify 'skip_unavailable_shards' setting in readonly mode` — панели показывают ошибку датасорса вместо данных. `readonly=2` по-прежнему запрещает `INSERT`/`ALTER`/DDL (пользователь `grafana_monitoring` не может изменить данные), но разрешает переопределение `SETTINGS` в запросе — этого достаточно и безопасно для дашбордов.
 
 **Топология кластера** — 1 шард и 2 реплики. Оператор создаст два пода: `chi-chi-test-test-0-0-0` и `chi-chi-test-test-0-1-0`. Для production репликация требует ZooKeeper или ClickHouse Keeper, в данном примере реплики независимы.
 
@@ -125,12 +125,12 @@ spec:
       readonly/readonly: 2
     users:
       # Создаём отдельного пользователя для мониторинга
-      monitoring/password: "monitoring"
+      grafana_monitoring/password: "monitoring"
       # Разрешаем подключение с любого IP внутри кластера
-      monitoring/networks/ip:
+      grafana_monitoring/networks/ip:
         - "::/0"
       # Профиль readonly (уровень 2, см. выше) — без изменения данных, но с SETTINGS
-      monitoring/profile: readonly
+      grafana_monitoring/profile: readonly
     clusters:
       - name: "test"
         layout:
@@ -190,7 +190,7 @@ spec:
 
 ConfigMap с лейблом `grafana_datasource: "1"` автоматически подхватывается sidecar-контейнером Grafana и добавляет datasource без ручной настройки через UI. Это позволяет управлять datasources как кодом (GitOps-подход) и не терять конфигурацию при рестарте Grafana.
 
-Datasource настраивается на подключение к ClickHouse через балансировщик `clickhouse-chi-test`, который автоматически создаётся оператором и распределяет запросы между репликами. Используется пользователь `monitoring`, созданный в предыдущем шаге. Тоже рендерится чартом `monitoring-extras` (`templates/clickhouse-datasource-cm.yaml`, `range` по `values.clickhouseClusters`):
+Datasource настраивается на подключение к ClickHouse через балансировщик `clickhouse-chi-test`, который автоматически создаётся оператором и распределяет запросы между репликами. Используется пользователь `grafana_monitoring`, созданный в предыдущем шаге. Тоже рендерится чартом `monitoring-extras` (`templates/clickhouse-datasource-cm.yaml`, `range` по `values.clickhouseClusters`):
 
 ```yaml
 apiVersion: v1
@@ -211,7 +211,7 @@ data:
         url: http://clickhouse-chi-test.clickhouse.svc.cluster.local:8123
         access: proxy
         basicAuth: true
-        basicAuthUser: monitoring
+        basicAuthUser: grafana_monitoring
         secureJsonData:
           basicAuthPassword: monitoring
         jsonData:

@@ -20,11 +20,11 @@ grafanaLibraryPanels:
 clickhouseClusters:
   - name: chi-test
     url: http://clickhouse-chi-test.clickhouse.svc.cluster.local:8123
-    username: monitoring
+    username: grafana_monitoring
     password: monitoring
   - name: chi-test-2
     url: http://clickhouse-chi-test-2.clickhouse-2.svc.cluster.local:8123
-    username: monitoring
+    username: grafana_monitoring
     password: monitoring
 
 imageRenderer:

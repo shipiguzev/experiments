@@ -11,10 +11,18 @@ spec:
       # readonly=2 still forbids INSERT/ALTER/DDL, but allows settings overrides.
       readonly/readonly: 2
     users:
-      monitoring/password: {{ .Values.users.monitoring.password | quote }}
-      monitoring/networks/ip:
+      grafana_monitoring/password: {{ .Values.users.grafana_monitoring.password | quote }}
+      grafana_monitoring/networks/ip:
         - "::/0"
-      monitoring/profile: readonly
+      grafana_monitoring/profile: readonly
+      # Altinity Queries dashboard only reads system.query_log (via cluster('all-sharded', ...),
+      # which needs REMOTE regardless of target) and system.columns (for the `type` enum
+      # picker). Declaring explicit grants here switches this user from the config-based
+      # default of unrestricted access to a deny-by-default RBAC principal limited to these.
+      grafana_monitoring/grants/query:
+        - "GRANT REMOTE ON *.*"
+        - "GRANT SELECT ON system.query_log"
+        - "GRANT SELECT ON system.columns"
       {{- if .Values.backup.enabled }}
       # Dedicated user for clickhouse-backup — needs ALTER (for FREEZE) and system table
       # access, so it uses the unrestricted "default" profile, not "readonly". Restricted to

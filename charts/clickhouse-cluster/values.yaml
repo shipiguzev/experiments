@@ -10,7 +10,7 @@ replicasCount: 2
 storage: 2Gi
 
 users:
-  monitoring:
+  grafana_monitoring:
     password: monitoring
   backup:
     password: backup
