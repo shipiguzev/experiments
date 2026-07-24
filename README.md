@@ -27,7 +27,14 @@ experiments/
 │   ├── postgres-cluster/                      # CR postgresql (3 инстанса) + monitoring-обвязка
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
+│   │   ├── values-step2-base.yaml             # состояние после доки 2 (кластер + мониторинг, без бэкапов)
+│   │   ├── values-step3-walg.yaml             # + WAL-G бэкапы (доки 3)
+│   │   ├── values-step4-v18.yaml              # + после major upgrade 14 → 18 (доки 4)
+│   │   ├── values-step6-partman.yaml          # + pg_partman партиционирование (доки 6)
+│   │   ├── values-step7-walg-exporter.yaml    # + wal-g-exporter (доки 7)
 │   │   ├── values-step8-partition-archive.yaml # CronJob: архив старых pg_partman партиций в S3
+│   │   ├── values-production.yaml             # самодостаточный full-stack (см. Быстрый старт), не чейнить со values-step*
+│   │   ├── values-postgres2-pgexporter.yaml   # независимый второй кластер с pg_exporter вместо postgres-exporter (доки 14)
 │   │   └── templates/
 │   ├── cnpg-cluster/                          # CR Cluster (CNPG) + ScheduledBackup + VMPodScrape
 │   │   ├── Chart.yaml
@@ -36,7 +43,9 @@ experiments/
 │   ├── clickhouse-cluster/                    # CR ClickHouseInstallation + clickhouse-backup sidecar
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml                        # дефолты = chi-test
+│   │   ├── values-step5-base.yaml             # состояние после доки 5, до бэкапов (доки 9 их включает)
 │   │   ├── values-test2.yaml                  # оверрайд для второго кластера (namespace clickhouse-2)
+│   │   ├── values-test3.yaml                  # третий кластер, версия закреплена на 23.3.2 (проверка совместимости дашбордов со старым CH)
 │   │   └── templates/
 │   └── monitoring-extras/                     # ClickHouse datasource, дашборды Grafana, grafana-image-renderer
 │       ├── Chart.yaml
@@ -67,6 +76,7 @@ experiments/
 11. **[Логи: Loki + Promtail на kind](docs/loki-logging-setup.md)** — Grafana Loki (SingleBinary, filesystem storage) + Promtail (DaemonSet), логи всех подов кластера доступны через Grafana Explore и переживают удаление самих объектов `Job`/`Pod`.
 12. **[Автоматический рестарт при изменении ConfigMap: Stakater Reloader](docs/reloader-setup.md)** — правка кастомных метрик `postgres-exporter` подхватывается сама, без ручного `kubectl delete pod`, через `podAnnotations` + repair-цикл оператора.
 13. **[CloudNativePG: второй Postgres-оператор бок о бок с Zalando](docs/cnpg-cluster-setup.md)** — независимый оператор `Cluster` CRD в своём namespace, бэкапы в тот же MinIO под отдельным префиксом, мониторинг через `VMPodScrape` вместо `VMServiceScrape`, официальный дашборд `cloudnative-pg/grafana-dashboards`.
+14. *(побочная ветка, не часть основной цепочки)* **[PostgreSQL мониторинг с pg_exporter (pgsty)](docs/postgres-monitoring-guide-pg-exporter.md)** — независимый второй кластер (`postgres2`) с `pgsty/pg_exporter` вместо `prometheus-postgres-exporter`, включая разбор проблемы multi-platform образов в kind.
 
 Каждая инструкция содержит не только happy path, но и раздел «Известные особенности» / troubleshooting с реально встреченными проблемами и их причинами.
 
