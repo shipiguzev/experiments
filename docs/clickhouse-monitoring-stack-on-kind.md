@@ -301,6 +301,21 @@ helm upgrade monitoring-extras ./charts/monitoring-extras --namespace monitoring
 
 Второй дашборд из того же upstream-репозитория — [`ClickHouse_Queries_dashboard.json`](https://github.com/Altinity/clickhouse-operator/blob/master/grafana-dashboard/ClickHouse_Queries_dashboard.json) (в этом репозитории сохранён под именем `altinity-clickhouse-queries-dashboard.json`). В отличие от operator-дашборда (метрики самого оператора из Prometheus/VictoriaMetrics), этот показывает данные из `system.query_log` самого ClickHouse — топ медленных запросов, потребление памяти/чтений/CPU, ошибки, request rate — то есть требует не Prometheus, а сам ClickHouse datasource. Панели `Top slow queries`/`Top memory consumers`/`Top queries by reads`/`Top queries by CPU` подсвечивают основную метрику градиентным баром (`gradient-gauge`, `continuous-blues`), `Top failed queries` — тем же баром, но красным (`continuous-reds`), так как ненулевой счётчик ошибок сам по себе тревожный сигнал, а не нейтральная величина.
 
+**Права пользователя datasource — `grafana_monitoring`.** Датасорс подключается под этим пользователем (переименован из `monitoring` — то же имя, что и у namespace/стека мониторинга, сбивало с толку). Профиль `readonly` (см. Шаг 3) сам по себе ограничивает только *режим* (`INSERT`/`ALTER`/DDL запрещены, `SETTINGS` разрешены) — но не то, *какие* базы/таблицы можно читать: без дополнительных ограничений `grafana_monitoring` видел бы вообще всё в кластере. Чтобы датасорс дашборда имел доступ ровно к тому, что реально используют его панели, у пользователя явно прописаны гранты (`spec.configuration.users` в CR, `templates/clickhouseinstallation.yaml`):
+
+```yaml
+grafana_monitoring/grants/query:
+  - "GRANT REMOTE ON *.*"
+  - "GRANT SELECT ON system.query_log"
+  - "GRANT SELECT ON system.columns"
+```
+
+- `system.query_log` — источник всех панелей (`Top slow queries`, `Top memory consumers`, request rate, error log и т.д.);
+- `system.columns` — нужен только переменной `$type` (см. ниже), которая вытаскивает список значений enum `type` из схемы `system.query_log`;
+- `REMOTE ON *.*` — обязателен для табличной функции `cluster('all-sharded', ...)`, которой пользуются почти все панели. Это отдельная привилегия в ClickHouse, не покрывается `SELECT` на целевую таблицу, и её нельзя сузить до конкретного кластера/БД — ограничение самого ClickHouse RBAC, не этой конфигурации.
+
+Как только у пользователя, заданного через `users.xml`/CR (а не SQL `CREATE USER`), появляется хотя бы один grant, поведение переключается с дефолтного «разрешено всё» на «запрещено всё, кроме перечисленного» — отдельный `REVOKE` не нужен. Проверено напрямую на живом кластере: `SHOW GRANTS FOR grafana_monitoring` показывает ровно эти три строки, а `SELECT * FROM system.parts`/`system.users`/`system.processes`, обычная таблица в любой другой БД или `CREATE DATABASE` — везде `ACCESS_DENIED: Not enough privileges`.
+
 Все панели используют переменную `$db` — датасорс-переменную с фильтром по типу `vertamedia-clickhouse-datasource`. Если датасорс этого типа один (`chi-test`), Grafana подставляет его автоматически; при нескольких (см. [«Несколько кластеров в разных namespace»](#несколько-кластеров-в-разных-namespace)) — выбирается вручную в UI.
 
 Переменные `$exported_namespace`/`$chi` (K8S Namespace / K8S Clickhouse Installation) связаны с `$db`: запрос `$exported_namespace` фильтрует метрики оператора по `chi="${db:text}"` **или** по `exported_namespace="${db:text}"`, а `$chi` в свою очередь фильтрует по `exported_namespace="$exported_namespace"` — получается цепочка `$db → $exported_namespace → $chi`. Двойной фильтр (`or` по обоим лейблам) нужен потому, что соглашение «имя Grafana-датасорса совпадает с CHI» не универсально: в этом репозитории датасорс называется как CHI (`chi-test` ↔ `chi="chi-test"`), но на других стендах встречается и другое соглашение — датасорс называется как k8s-namespace инсталляции (`chi="clickhouse"` при этом единый на несколько неймспейсов, различаются только по `exported_namespace`). `$exported_namespace` матчит `${db:text}` по любому из двух лейблов, поэтому работает в обоих случаях.
