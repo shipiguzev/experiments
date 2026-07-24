@@ -337,7 +337,19 @@ helm upgrade --install chi-test-2 ./charts/clickhouse-cluster \
 
 Единственное отличие в values — `backup.s3.pathPrefix: chi-test-2` (бакет `clickhouse-backups` общий на оба кластера, разделены префиксом), уже в `values-test2.yaml`; остальное наследуется из `values.yaml`.
 
-Правил по факту править не пришлось — все грабли из разделов 1–8 (в первую очередь `dataVolumeClaimTemplate` вместо ручного `volumeMounts`) уже были учтены в манифесте с первого раза. Проверка после применения:
+**Грабли: бакет из раздела 2 может не существовать.** Раздел 2 предполагает, что бакет `clickhouse-backups` уже создан при настройке `chi-test`. Но если в вашем стенде релиз `chi-test` в текущий момент развёрнут с `backup.enabled: false` (см. `values-step5-base.yaml` — например, вы прошли [clickhouse-monitoring-stack-on-kind.md](clickhouse-monitoring-stack-on-kind.md) до бэкапа, и в `chi-test` бэкап так и остался выключенным), бакет по факту никогда не создавался, и под `chi-test-2` встанет в `CreateContainerConfigError`/будет молчать в логах `clickhouse-backup`, пока бакета нет. Создайте его тем же способом, что и в разделе 2, прежде чем разворачивать `chi-test-2`:
+
+```bash
+MINIO_POD=$(kubectl get pods -n minio -l app=minio -o jsonpath='{.items[0].metadata.name}')
+# Алиас `local` из раздела 2/postgres-walg-backup-setup.md живёт в /tmp/.mc внутри пода
+# MinIO — не переживает рестарт пода, после которого остаётся дефолтный alias
+# без кредов (mc alias list покажет пустые AccessKey/SecretKey). mc alias set идемпотентен,
+# безопасно перевыполнять каждый раз перед mb/ls, если не уверены, что алиас ещё жив.
+kubectl exec -n minio "$MINIO_POD" -- mc alias set local http://localhost:9000 minioadmin minioadmin
+kubectl exec -n minio "$MINIO_POD" -- mc mb local/clickhouse-backups
+```
+
+Правил манифеста по факту править не пришлось — все грабли из разделов 1–8 (в первую очередь `dataVolumeClaimTemplate` вместо ручного `volumeMounts`) уже были учтены в манифесте с первого раза. Проверка после применения:
 
 ```bash
 kubectl get pods -n clickhouse-2
