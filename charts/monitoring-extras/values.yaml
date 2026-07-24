@@ -26,6 +26,10 @@ clickhouseClusters:
     url: http://clickhouse-chi-test-2.clickhouse-2.svc.cluster.local:8123
     username: grafana_monitoring
     password: monitoring
+  - name: chi-test-3
+    url: http://clickhouse-chi-test-3.clickhouse-3.svc.cluster.local:8123
+    username: grafana_monitoring
+    password: monitoring
 
 imageRenderer:
   # Optional (docs/grafana-image-renderer-setup.md) — off by default, turn on with

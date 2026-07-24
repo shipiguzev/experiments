@@ -6,6 +6,7 @@ configs:
           include:
             - clickhouse
             - clickhouse-2
+            - clickhouse-3
 metrics:
   enabled: true
 

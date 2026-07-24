@@ -1,0 +1,12 @@
+# Third cluster, separate namespace — install as its own release:
+#   helm install chi-test-3 ./clickhouse-cluster -f values-test3.yaml
+# Pinned to an older ClickHouse version (23.3.2) rather than :latest like chi-test/chi-test-2.
+namespace: clickhouse-3
+chiName: chi-test-3
+clusterName: test3
+
+image: clickhouse/clickhouse-server:23.3.2
+
+backup:
+  s3:
+    pathPrefix: chi-test-3
